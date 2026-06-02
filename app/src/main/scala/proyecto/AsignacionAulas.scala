@@ -63,7 +63,16 @@ object AsignacionAulas {
   // ---------------------------------------------------------------------------
 
   /** Devuelve true sii los intervalos [ini1, fin1) y [ini2, fin2) se traslapan. */
-  def solapan(c1: Curso, c2: Curso): Boolean = ???
+  def solapan(c1: Curso, c2: Curso): Boolean = {
+    val inicio1 = iniCurso(c1) // aqui obtenemos el inicio del curso 1
+    val inicio2 = iniCurso(c2) // aqui obtenemos el inicio del curso 2
+    val final1 = finCurso(c1) // aqui obtenemos el final del curso 1
+    val final2 = finCurso(c2) // aqui obtenemos el final del curso 2
+    inicio1 < final2 && inicio2 < final1
+    // en este caso si se interponen va a ser porque el curso 1
+    // empieza antes de que termine el curso 2 y que el curso 2 empiece
+    // antes de que termine el curso 1
+  }
 
   /**
    * Número de pares (i, j) con i < j tales que a(i) == a(j) >= 0
