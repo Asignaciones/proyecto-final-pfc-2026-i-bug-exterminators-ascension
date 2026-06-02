@@ -78,7 +78,18 @@ object AsignacionAulas {
    * Número de pares (i, j) con i < j tales que a(i) == a(j) >= 0
    * y los cursos i y j se solapan.
    */
-  def choques(cursos: Cursos, a: Asignacion): Int = ???
+  def choques(cursos: Cursos, a: Asignacion): Int = {
+    val pares = for {
+      i <- 0 until cursos.length          // se recorre cada curso
+      j <- (i + 1) until cursos.length    // luego se compara con los que vienen después
+      if a(i) >= 0 && a(j) >= 0                // se hace la verificacion para que los cursos tengan una aula asignada
+      if a(i) == a(j)                          // y se verifica si los cursos usan la misma aula
+      if solapan(cursos(i), cursos(j))         // ademas que sus horarios se superpongan
+    } yield 1                                  // despues si se cumple todo esto se se cuenta un choque
+
+    // el resultado sera el total de choques que halla en pares
+    pares.length
+  }
 
   /** Cantidad de cursos cuya aula asignada tiene capacidad menor al número de estudiantes. */
   def capacidadFallida(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = ???
