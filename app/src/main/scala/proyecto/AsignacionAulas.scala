@@ -92,7 +92,13 @@ object AsignacionAulas {
   }
 
   /** Cantidad de cursos cuya aula asignada tiene capacidad menor al número de estudiantes. */
-  def capacidadFallida(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = ???
+  def capacidadFallida(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = {
+   val cursAuls = for{
+      i<- (0 until cursos.length)
+    }yield (cursos(i)._4,aulas(a(i))._2) //Se crea un vector de tuplas donde esta la cantidad de estudiantes i ,la capacidad del aula j(posicion dada por la asignacion)
+    //Condicion capacidadAulas < a cantidad de estudiantes
+    cursAuls.count(p=>p._2<p._1)//Count permite contar todas las tuplas que cumplen exactamente la condicion
+  }
 
   /**
    * Suma de (cap(aula_i) - est(curso_i)) para los cursos asignados

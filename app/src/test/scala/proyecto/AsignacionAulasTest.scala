@@ -10,10 +10,10 @@ class AsignacionAulasTest extends AnyFunSuite {
 
   // Ejemplo 1 del enunciado
   val c1: Cursos    = Vector(("M01", 4, 8, 25), ("M02", 6, 10, 30), ("M03", 12, 16, 20))
-  val a1: Aulas     = Vector(("E101", 30), ("E102", 40))
+  val a1: Aulas     = Vector(("E101", 30), ("E102", 40)) //30
   val d1: Distancias = Vector(Vector(0, 3), Vector(3, 0))
   val w: Pesos      = (1000, 100, 1, 2)
-
+  val a: Asignacion = Vector(0,1,0)
   // solapan
   test("solapan: M01[4,8) y M02[6,10) se solapan") {
     assert(solapan(("M01", 4, 8, 25), ("M02", 6, 10, 30)))
@@ -39,6 +39,113 @@ class AsignacionAulasTest extends AnyFunSuite {
   // capacidadFallida
   test("capacidadFallida: asignacion [0,0,1] no falla capacidad") {
     assert(capacidadFallida(c1, a1, Vector(0, 0, 1)) == 0)
+  }
+  //
+  test("capacidadFallida: cursos asignados a aulas con capacidad suficiente") {
+    val cursos = Vector(
+      ("A",0,2,50),
+      ("B",2,4,20)
+    )
+
+    val aulas = Vector(
+      ("E1",30),
+      ("E2",60)
+    )
+
+    val a1 = Vector(1,0)
+    val n = capacidadFallida(cursos,aulas,a1)
+    assert(n == 0)
+  }
+
+  test("capacidadFallida: un curso falla") {
+    val aulas = Vector(
+      ("E1",30),
+      ("E2",40),
+      ("E3",50)
+    )
+
+    val cursos = Vector(
+      ("C1",0,2,25),
+      ("C2",2,4,35),
+      ("C3",4,6,45),
+      ("C4",6,8,55)
+    )
+
+    assert(
+      capacidadFallida(
+        cursos,
+        aulas,
+        Vector(0,1,2,2)
+      ) == 1
+    )
+  }
+
+  test("capacidadFallida: dos cursos fallan") {
+    val aulas = Vector(
+      ("E1",30),
+      ("E2",40),
+      ("E3",50)
+    )
+
+    val cursos = Vector(
+      ("C1",0,2,25),
+      ("C2",2,4,35),
+      ("C3",4,6,45),
+      ("C4",6,8,55)
+    )
+
+    assert(
+      capacidadFallida(
+        cursos,
+        aulas,
+        Vector(0,0,2,2)
+      ) == 2
+    )
+  }
+
+  test("capacidadFallida: todos los cursos fallan") {
+    val aulas = Vector(
+      ("E1",30),
+      ("E2",40),
+      ("E3",50)
+    )
+
+    val cursos = Vector(
+      ("C1",0,2,60),
+      ("C2",2,4,70),
+      ("C3",4,6,80)
+    )
+
+    assert(
+      capacidadFallida(
+        cursos,
+        aulas,
+        Vector(0,1,2)
+      ) == 3
+    )
+  }
+
+  test("capacidadFallida: varios cursos comparten la misma aula") {
+    val aulas = Vector(
+      ("E1",30),
+      ("E2",40),
+      ("E3",50)
+    )
+
+    val cursos = Vector(
+      ("C1",0,2,25),
+      ("C2",2,4,35),
+      ("C3",4,6,45),
+      ("C4",6,8,55)
+    )
+
+    assert(
+      capacidadFallida(
+        cursos,
+        aulas,
+        Vector(0,0,0,0)
+      ) == 3
+    )
   }
 
   // desperdicio
@@ -75,4 +182,5 @@ class AsignacionAulasTest extends AnyFunSuite {
     val (_, costo) = asignacionOptima(c1, a1, d1, w)
     assert(costo <= 37)
   }
+
 }
