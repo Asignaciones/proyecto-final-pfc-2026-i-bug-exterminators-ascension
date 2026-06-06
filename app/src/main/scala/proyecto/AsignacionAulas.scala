@@ -104,7 +104,21 @@ object AsignacionAulas {
    * Suma de (cap(aula_i) - est(curso_i)) para los cursos asignados
    * con capacidad suficiente.
    */
-  def desperdicio(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = ???
+  def desperdicio(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = {
+
+    val cursAuls = for{
+      i<- (0 until cursos.length)
+    }yield (cursos(i)._4,aulas(a(i))._2) //Se crea un vector de tuplas donde esta la cantidad de estudiantes i ,la capacidad del aula j(posicion dada por la asignacion)
+
+    val listaDesperdicio = cursAuls.toList.filter{
+      case (cantEst,capacidadAuls)=>
+        capacidadAuls >= cantEst //Filtro de las aulas que si tienen suficiente capacidad para almacenar estudiantes
+    }.map{
+      case (cantEst,capacidadAuls)=>
+        capacidadAuls - cantEst //Se resta la capacidad del aula con la cantidad de estudiantes
+    }                          //Se hace esto para poder calcular el desperdicio es decir cuantas aulas quedan libres ejemplo si son 30 - 25 = 5 esos 5 representan los puestos sobrantes
+    listaDesperdicio.sum//Al final se suman todos los desperdicios calculados incluyendo si no hubo desperdicio ya que si no lo hubo el valor seria 0(indicando que no hubo nada de desperdicio)
+  }
 
   /**
    * Ordena los cursos asignados por hora de inicio y suma las distancias
