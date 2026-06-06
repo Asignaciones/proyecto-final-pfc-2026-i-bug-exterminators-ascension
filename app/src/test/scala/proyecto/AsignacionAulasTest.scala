@@ -159,6 +159,71 @@ class AsignacionAulasTest extends AnyFunSuite {
     assert(desperdicio(c1, a1, Vector(0, 1, 0)) == 25)
   }
 
+  //
+  test("desperdicio: capacidad exacta produce desperdicio 0") {
+    val cursos = Vector(
+      ("A",0,2,30),
+      ("B",2,4,40),
+      ("C",4,6,50)
+    )
+    val aulas = Vector(
+      ("E1",30),
+      ("E2",40),
+      ("E3",50)
+    )
+    assert(desperdicio(cursos,aulas,Vector(0,1,2)) == 0)
+  }
+
+  test("desperdicio: todos los cursos caben y generan desperdicio") {
+    val cursos = Vector(
+      ("A",0,2,10),
+      ("B",2,4,20),
+      ("C",4,6,30)
+    )
+    val aulas = Vector(
+      ("E1",30),
+      ("E2",40),
+      ("E3",50)
+    )
+    assert(desperdicio(cursos,aulas,Vector(0,1,2)) == 60)
+  }
+
+  test("desperdicio: cursos sin capacidad suficiente no aportan desperdicio") {
+    val cursos = Vector(
+      ("A",0,2,35),
+      ("B",2,4,20)
+    )
+    val aulas = Vector(
+      ("E1",30),
+      ("E2",40)
+    )
+    assert(desperdicio(cursos,aulas,Vector(0,1)) == 20)
+  }
+
+  test("desperdicio: varios cursos comparten la misma aula") {
+    val cursos = Vector(
+      ("A",0,2,20),
+      ("B",2,4,25),
+      ("C",4,6,30)
+    )
+    val aulas = Vector(
+      ("E1",40)
+    )
+    assert(desperdicio(cursos,aulas,Vector(0,0,0)) == 45)
+  }
+
+  test("desperdicio: la asignacion determina el aula usada") {
+    val cursos = Vector(
+      ("A",0,2,50),
+      ("B",2,4,20)
+    )
+    val aulas = Vector(
+      ("E1",30),
+      ("E2",60)
+    )
+    assert(desperdicio(cursos,aulas,Vector(1,0)) == 20)
+  }
+
   // costoAsignacion
   test("costoAsignacion: asignacion [0,0,1] cuesta 1031") {
     assert(costoAsignacion(c1, a1, d1, Vector(0, 0, 1), w) == 1031)
