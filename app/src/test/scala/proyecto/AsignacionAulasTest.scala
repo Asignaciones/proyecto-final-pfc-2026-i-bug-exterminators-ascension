@@ -277,7 +277,36 @@ class AsignacionAulasTest extends AnyFunSuite {
   }
 
   // movilidad
+  test("movilidad: asignacion [0,1,0] con cursos del ejemplo 1, distancia 6") {
+    assert(movilidad(c1, a1, d1, Vector(0, 1, 0)) == 6)
+  }
 
+  test("movilidad: asignacion [0,0,1] con cursos del ejemplo 1, distancia 3") {
+    assert(movilidad(c1, a1, d1, Vector(0, 0, 1)) == 3)
+  }
+
+  test("movilidad: un solo curso asignado, movilidad 0") {
+    val cursos = Vector(("C1", 0, 4, 10))
+    val aulas  = Vector(("E1", 20), ("E2", 20))
+    val dist   = Vector(Vector(0, 5), Vector(5, 0))
+    assert(movilidad(cursos, aulas, dist, Vector(0)) == 0)
+  }
+
+  test("movilidad: todos en la misma aula, distancia 0") {
+    val cursos = Vector(("C1", 0, 4, 10), ("C2", 5, 9, 10), ("C3", 10, 14, 10))
+    val aulas  = Vector(("E1", 20), ("E2", 20))
+    val dist   = Vector(Vector(0, 4), Vector(4, 0))
+    assert(movilidad(cursos, aulas, dist, Vector(0, 0, 0)) == 0)
+  }
+
+  test("movilidad: cursos desordenados se ordenan por inicio antes de sumar") {
+    // C2 empieza antes que C1, entonces el orden es C2 -> C1 -> C3
+    // dist(1->0) + dist(0->1) = 4 + 4 = 8
+    val cursos = Vector(("C1", 6, 10, 10), ("C2", 0, 4, 10), ("C3", 12, 16, 10))
+    val aulas  = Vector(("E1", 20), ("E2", 20))
+    val dist   = Vector(Vector(0, 4), Vector(4, 0))
+    assert(movilidad(cursos, aulas, dist, Vector(0, 1, 1)) == 8)
+  }
   // costoAsignacion
   test("costoAsignacion: asignacion [0,0,1] cuesta 1031") {
     assert(costoAsignacion(c1, a1, d1, Vector(0, 0, 1), w) == 1031)
