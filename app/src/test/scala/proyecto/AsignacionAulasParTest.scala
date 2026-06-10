@@ -280,6 +280,40 @@ class AsignacionAulasParTest extends AnyFunSuite {
     assert(costo <= 37)
   }
 
+  test("asignacionOptimaPar: el costo optimo es menor al de [0,0,1] (1031)") {
+    val (_, costo) = asignacionOptimaPar(c1, a1, d1, w)
+    assert(costo < 1031)
+  }
+
+  test("asignacionOptimaPar: el resultado coincide con la version secuencial") {
+    val (_, costoSec) = asignacionOptima(c1, a1, d1, w)
+    val (_, costoPar) = asignacionOptimaPar(c1, a1, d1, w)
+    assert(costoPar == costoSec)
+  }
+
+  test("asignacionOptimaPar: ejemplo 2, el costo optimo no supera el de [0,1,0,1] (155)") {
+    val c2 = Vector(("F01", 0, 4, 40), ("F02", 4, 8, 25), ("F03", 8, 12, 50), ("F04", 12, 16, 15))
+    val a2 = Vector(("S201", 45), ("S202", 30))
+    val d2 = Vector(Vector(0, 5), Vector(5, 0))
+    val (_, costo) = asignacionOptimaPar(c2, a2, d2, (1000, 100, 1, 2))
+    assert(costo <= 155)
+  }
+
+  test("asignacionOptimaPar: la optima par es menor o igual a cualquier otra asignacion") {
+    val (_, costoOptimo) = asignacionOptimaPar(c1, a1, d1, w)
+    val todasLasAsignaciones = generarAsignaciones(c1.length, a1.length)
+    val todosLosCostos = todasLasAsignaciones.map(a => costoAsignacion(c1, a1, d1, a, w))
+    assert(todosLosCostos.forall(c => costoOptimo <= c))
+  }
+
+  test("asignacionOptimaPar: con un solo curso retorna el aula de menor desperdicio") {
+    val cursos = Vector(("C1", 0, 4, 20))
+    val aulas  = Vector(("E1", 30), ("E2", 50))
+    val dist   = Vector(Vector(0, 3), Vector(3, 0))
+    val (_, costo) = asignacionOptimaPar(cursos, aulas, dist, (1000, 100, 1, 2))
+    assert(costo == 10)
+  }
+
   //Mediciones de las funciones en su version secuencial vs su version paralela
   def generarCursos(n:Int): Cursos =
     Vector.tabulate(n){ i =>
