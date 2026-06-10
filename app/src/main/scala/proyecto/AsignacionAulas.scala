@@ -132,38 +132,25 @@ object AsignacionAulas {
 
   def movilidad(cursos: Cursos, aulas: Aulas, d: Distancias,
                 a: Asignacion): Int = {
-
-    // tomamos solo los cursos que tienen aula asignada
-    val cursosAsignados = cursos.indices.filter(i => a(i) >= 0)
-    // los ordenamos por hora de inicio
-    val ordenados = cursosAsignados.sortBy(i => iniCurso(cursos(i)))
-    // si hay menos de 2 cursos no hay desplazamiento
-    if (ordenados.length < 2)
-      0
-    else {
-      // recorremos pares consecutivos y sumamos la distancia entre sus aulas
-      val pares = ordenados.zip(ordenados.tail)
-      pares.map { case (i, j) => d(a(i))(a(j)) }.sum
-    }
+    val ordenados = cursos.indices.toVector
+      .filter(i => a(i) >= 0)
+      .sortBy(i => iniCurso(cursos(i)))
+    if (ordenados.length < 2) 0
+    else
+      ordenados.zip(ordenados.tail)
+        .map { case (i, j) => d(a(i))(a(j)) }
+        .sum
   }
 
   /** Costo total: w_CH * CH + w_CF * CF + w_DE * DE + w_MV * MV. */
   def costoAsignacion(cursos: Cursos, aulas: Aulas, d: Distancias,
                       a: Asignacion, w: Pesos): Int = {
-
-    val wCH = w._1
-    val wCF = w._2
-    val wDE = w._3
-    val wMV = w._4
-    // calculamos cada componente del costo
-    val ch = choques(cursos, a)
-    val cf = capacidadFallida(cursos, aulas, a)
-    val de = desperdicio(cursos, aulas, a)
-    val mv = movilidad(cursos, aulas, d, a)
-    // aplicamos la formula del enunciado
-    wCH * ch + wCF * cf + wDE * de + wMV * mv
+    val (wCH, wCF, wDE, wMV) = w
+    wCH * choques(cursos, a) +
+      wCF * capacidadFallida(cursos, aulas, a) +
+      wDE * desperdicio(cursos, aulas, a) +
+      wMV * movilidad(cursos, aulas, d, a)
   }
-
   /**
    * Genera todas las asignaciones completas posibles: vectores en {0,..,m-1}^n.
    * El tamaño del resultado es m^n.
