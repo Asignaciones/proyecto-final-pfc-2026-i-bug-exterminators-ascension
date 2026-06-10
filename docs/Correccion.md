@@ -458,6 +458,309 @@ $$
 
 ---
 
+## 3.1. Funcion `choquesPar`
+
+### Especificacion
+
+Sea $f : \text{Cursos} \times \text{Asignacion} \to \mathbb{N}$ la funcion
+que cuenta el numero de pares $(i, j)$ con $i < j$ tales que ambos
+cursos tienen aula asignada, comparten aula y se solapan en tiempo:
+
+$$
+f(\text{cursos}, \alpha) = \left|\{(i,j) \mid 0 \leq i < j < n,\; \alpha_i \geq 0,\; \alpha_j \geq 0,\; \alpha_i = \alpha_j,\; \text{solapan}(c_i, c_j)\}\right|
+$$
+
+### Implementacion
+
+```scala
+def choquesPar(cursos: Cursos, a: Asignacion): Int = {
+  val n   = cursos.length
+  val mid = n / 2
+
+  def choquesRango(desde: Int, hasta: Int): Int =
+    (desde until hasta).toVector.flatMap { i =>
+      (i + 1 until n).toVector
+        .filter(j => a(i) >= 0 && a(j) >= 0 && a(i) == a(j))
+        .map(j => if (solapan(cursos(i), cursos(j))) 1 else 0)
+    }.sum
+
+  val (t1, t2) = parallel(choquesRango(0, mid), choquesRango(mid, n))
+  t1 + t2
+}
+```
+
+### Argumentacion de correccion
+
+Se demuestra en dos partes: primero la correccion de `choquesRango`
+y luego la correccion de la division paralela.
+
+Queremos demostrar:
+
+$$
+\forall \text{cursos} \in \text{Cursos},\; \alpha \in \text{Asignacion} : P_f(\text{cursos}, \alpha) == f(\text{cursos}, \alpha)
+$$
+
+#### Parte 1: Correccion de `choquesRango`
+
+Sea $g(\text{desde}, \text{hasta})$ la funcion que cuenta los pares
+$(i, j)$ con $i \in [\text{desde}, \text{hasta})$ y $j \in (i, n)$
+que cumplen las tres condiciones de la especificacion:
+
+$$
+g(d, h) = \left|\{(i,j) \mid d \leq i < h,\; i < j < n,\; \alpha_i \geq 0,\; \alpha_j \geq 0,\; \alpha_i = \alpha_j,\; \text{solapan}(c_i, c_j)\}\right|
+$$
+
+La implementacion recorre $i \in [d, h)$ con `flatMap` y para cada
+$i$ evalua todos los $j \in (i, n)$ con `filter` y `map`:
+
+- `filter` retiene los $j$ donde $\alpha_i \geq 0 \land \alpha_j \geq 0 \land \alpha_i = \alpha_j$,
+  implementando exactamente las tres condiciones de la especificacion.
+- `map` produce $1$ si `solapan` y $0$ en caso contrario, y la
+  correccion de `solapan` fue demostrada previamente.
+- `.sum` acumula el conteo total.
+
+Por tanto $\text{choquesRango}(d, h) = g(d, h)$. ✓
+
+#### Parte 2: Correccion de la division paralela
+
+Sea $m = \lfloor n/2 \rfloor$. La division $[0, m)$ y $[m, n)$ es
+una **particion disjunta y completa** de $[0, n)$:
+
+$$
+[0, n) = [0, m) \cup [m, n) \quad \land \quad [0, m) \cap [m, n) = \emptyset
+$$
+
+Todo par $(i, j)$ con $i < j$ tiene su indice $i$ en exactamente
+una de las dos mitades. Por tanto los conjuntos de pares contados
+por $g(0, m)$ y $g(m, n)$ son disjuntos y su union es el conjunto
+completo de pares de la especificacion:
+
+$$
+f(\text{cursos}, \alpha) = g(0, m) + g(m, n)
+$$
+
+Como `parallel` ejecuta `choquesRango(0, mid)` y `choquesRango(mid, n)`
+concurrentemente sin compartir estado mutable:
+
+$$
+P_f(\text{cursos}, \alpha) = t_1 + t_2 = g(0, m) + g(m, n) = f(\text{cursos}, \alpha)
+$$
+
+**Conclusion:**
+
+$$
+\forall \text{cursos},\; \alpha : P_f(\text{cursos}, \alpha) == f(\text{cursos}, \alpha) \quad \checkmark
+$$
+
+---
+
+## 3.1. Funcion `desperdicioPar`
+
+### Especificacion
+
+Sea $g : \text{Cursos} \times \text{Aulas} \times \text{Asignacion} \to \mathbb{N}$
+la funcion que suma los puestos sobrantes de las aulas con capacidad
+suficiente para sus cursos asignados:
+
+$$
+g(\text{cursos}, \text{aulas}, \alpha) = \sum_{\substack{i=0 \\ \alpha_i \geq 0 \\ \text{cap}(\alpha_i) \geq \text{est}(i)}}^{n-1} \left(\text{cap}(\alpha_i) - \text{est}(i)\right)
+$$
+
+donde $\text{cap}(\alpha_i) = \text{capAula}(\text{aulas}(\alpha_i))$
+y $\text{est}(i) = \text{estCurso}(\text{cursos}(i))$.
+
+### Implementacion
+
+```scala
+def desperdicioPar(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = {
+  val n   = cursos.length
+  val mid = n / 2
+
+  def desperdicioRango(desde: Int, hasta: Int): Int =
+    (desde until hasta).toVector
+      .filter(i => a(i) >= 0 && capAula(aulas(a(i))) >= estCurso(cursos(i)))
+      .map(i => capAula(aulas(a(i))) - estCurso(cursos(i)))
+      .sum
+
+  val (t1, t2) = parallel(desperdicioRango(0, mid), desperdicioRango(mid, n))
+  t1 + t2
+}
+```
+
+### Argumentacion de correccion
+
+Queremos demostrar:
+
+$$
+\forall \text{cursos},\; \text{aulas},\; \alpha : P_g(\text{cursos}, \text{aulas}, \alpha) == g(\text{cursos}, \text{aulas}, \alpha)
+$$
+
+#### Parte 1: Correccion de `desperdicioRango`
+
+Sea $h(d, h')$ la sumatoria parcial de $g$ restringida al rango
+$[d, h')$:
+
+$$
+h(d, h') = \sum_{\substack{i=d \\ \alpha_i \geq 0 \\ \text{cap}(\alpha_i) \geq \text{est}(i)}}^{h'-1} \left(\text{cap}(\alpha_i) - \text{est}(i)\right)
+$$
+
+La implementacion aplica `filter` con el predicado
+$\alpha_i \geq 0 \land \text{cap}(\alpha_i) \geq \text{est}(i)$,
+que corresponde exactamente a la condicion de la sumatoria.
+Luego `map` calcula $\text{cap}(\alpha_i) - \text{est}(i) \geq 0$
+para cada indice retenido, y `.sum` acumula el resultado.
+
+Por tanto $\text{desperdicioRango}(d, h') = h(d, h')$. ✓
+
+#### Parte 2: Correccion de la division paralela
+
+La sumatoria de $g$ es **aditivamente separable** sobre particiones
+disjuntas del rango de indices. Con $m = \lfloor n/2 \rfloor$:
+
+$$
+g(\text{cursos}, \text{aulas}, \alpha) = h(0, m) + h(m, n)
+$$
+
+Cada termino de la suma depende unicamente de su propio rango de
+indices. Las dos llamadas a `desperdicioRango` en `parallel` no
+comparten estado mutable, por lo que la ejecucion concurrente
+produce los mismos valores que la secuencial:
+
+$$
+P_g = t_1 + t_2 = h(0, m) + h(m, n) = g(\text{cursos}, \text{aulas}, \alpha)
+$$
+
+**Caso limite:** si todos los cursos exceden la capacidad, `filter`
+descarta todos los indices en ambas mitades y $t_1 = t_2 = 0$,
+correcto por definicion de sumatoria sobre conjunto vacio. La prueba
+**"todos los cursos exceden la capacidad"** verifica `== 0`. ✓
+
+**Conclusion:**
+
+$$
+\forall \text{cursos},\; \text{aulas},\; \alpha : P_g(\text{cursos}, \text{aulas}, \alpha) == g(\text{cursos}, \text{aulas}, \alpha) \quad \checkmark
+$$
+
+---
+
+## 3.1. Funcion `movilidadPar`
+
+### Especificacion
+
+Sea $f : \text{Cursos} \times \text{Aulas} \times \text{Distancias} \times \text{Asignacion} \to \mathbb{N}$
+la funcion que suma las distancias entre aulas de cursos consecutivos
+en el tiempo, considerando solo los cursos con aula asignada:
+
+$$
+f(\text{cursos}, \text{aulas}, d, \alpha) = \sum_{k=0}^{|ord|-2} d(\alpha_{ord_k})(\alpha_{ord_{k+1}})
+$$
+
+donde $ord = \text{sort}_{\text{ini}}(\{i \mid \alpha_i \geq 0\})$
+es la secuencia de indices de cursos asignados ordenados por hora
+de inicio, y $d(p)(q)$ es la distancia entre el aula $p$ y el aula $q$.
+
+### Implementacion
+
+```scala
+def movilidadPar(cursos: Cursos, aulas: Aulas, d: Distancias,
+                 a: Asignacion): Int = {
+  val ordenados = cursos.indices.toVector
+    .filter(i => a(i) >= 0)
+    .sortBy(i => iniCurso(cursos(i)))
+
+  if (ordenados.length < 2) 0
+  else {
+    val pares = ordenados.zip(ordenados.tail)
+    val ini   = 0
+    val fin   = pares.length
+    val mid   = ini + (fin - ini) / 2
+
+    val (t1, t2) = parallel(
+      pares.slice(ini, mid).map { case (i, j) => d(a(i))(a(j)) }.sum,
+      pares.slice(mid, fin).map { case (i, j) => d(a(i))(a(j)) }.sum
+    )
+    t1 + t2
+  }
+}
+```
+
+### Argumentacion de correccion
+
+Se demuestra en tres partes: correccion del preprocesamiento,
+correccion de la formacion de pares y correccion de la division
+paralela.
+
+Queremos demostrar:
+
+$$
+\forall \text{cursos},\; \text{aulas},\; d,\; \alpha : P_f(\text{cursos}, \text{aulas}, d, \alpha) == f(\text{cursos}, \text{aulas}, d, \alpha)
+$$
+
+#### Parte 1: Correccion del preprocesamiento
+
+**filter:** `filter(i => a(i) >= 0)` retiene exactamente los indices
+$i$ con $\alpha_i \geq 0$, es decir, los cursos con aula asignada.
+El conjunto resultante es $\{i \mid \alpha_i \geq 0\}$. ✓
+
+**sortBy:** `sortBy(i => iniCurso(cursos(i)))` ordena los indices
+retenidos por hora de inicio en orden ascendente, produciendo la
+secuencia $ord$ de la especificacion. ✓
+
+Por tanto $\text{ordenados} = ord$.
+
+#### Parte 2: Correccion de la formacion de pares
+
+`ordenados.zip(ordenados.tail)` produce el vector de pares
+consecutivos:
+
+$$
+\text{pares} = [(ord_0, ord_1),\; (ord_1, ord_2),\; \ldots,\; (ord_{|ord|-2}, ord_{|ord|-1})]
+$$
+
+con $|\text{pares}| = |ord| - 1$. Cada par $(ord_k, ord_{k+1})$
+representa dos cursos consecutivos en tiempo. ✓
+
+**Caso limite** $|ord| < 2$: no existen pares consecutivos, la
+movilidad es $0$ por definicion de sumatoria sobre conjunto vacio.
+La funcion retorna $0$ directamente. ✓
+
+#### Parte 3: Correccion de la division paralela
+
+Con $m = \lfloor |\text{pares}| / 2 \rfloor$, la division
+`slice(0, m)` y `slice(m, fin)` es una particion disjunta y completa
+de `pares`. La sumatoria de $f$ es aditivamente separable:
+
+$$
+f = \sum_{k=0}^{m-1} d(\alpha_{ord_k})(\alpha_{ord_{k+1}}) + \sum_{k=m}^{|ord|-2} d(\alpha_{ord_k})(\alpha_{ord_{k+1}})
+$$
+
+Cada termino depende unicamente de su par $(ord_k, ord_{k+1})$
+y de los valores de $d$ y $\alpha$, ambos de solo lectura. Las
+dos ramas de `parallel` no comparten estado mutable, por lo que:
+
+$$
+P_f = t_1 + t_2 = \sum_{k=0}^{m-1} d(\alpha_{ord_k})(\alpha_{ord_{k+1}}) + \sum_{k=m}^{|ord|-2} d(\alpha_{ord_k})(\alpha_{ord_{k+1}}) = f
+$$
+
+**Caso limite:** cuando todos los cursos estan en la misma aula,
+$d(k)(k) = 0$ para todo $k$, por lo que todos los terminos son
+$0$ y $t_1 + t_2 = 0$. La prueba **"todos en la misma aula generan
+movilidad 0"** verifica este caso. ✓
+
+**Caso limite:** cuando hay cursos sin asignar (`a(i) = -1`), el
+`filter` los excluye de `ordenados` antes de formar los pares,
+por lo que no participan en la sumatoria. La prueba **"cursos sin
+asignar no participan"** verifica este caso. ✓
+
+**Conclusion:**
+
+$$
+\forall \text{cursos},\; \text{aulas},\; d,\; \alpha : P_f(\text{cursos}, \text{aulas}, d, \alpha) == f(\text{cursos}, \text{aulas}, d, \alpha) \quad \checkmark
+$$
+
+
+---
+
 ## 3.2. Funcion `generarAsignacionesPar` (version paralela)
 
 ### Especificacion
