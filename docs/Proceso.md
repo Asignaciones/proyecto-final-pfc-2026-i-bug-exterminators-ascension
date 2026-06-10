@@ -1,7 +1,7 @@
 # Informe de Proceso
 
 ---
-## 1. Función `solapan`
+## 2.3. Función `solapan`
 
 ### Definición
 
@@ -117,7 +117,7 @@ flowchart TD
  
 ---
 
-## 2. Función `choques`
+## 2.4. Función `choques`
 
 ### Definición
 
@@ -203,10 +203,308 @@ flowchart TD
     D3 --> R
     E3 --> R
 ```
- 
+
 ---
 
-## 3. Función `asignacionOptima` y su núcleo recursivo `generarAsignaciones`
+## 2.5. Funciones `capacidadFallida` y `desperdicio`
+
+### Definicion de `capacidadFallida`
+
+```scala
+def capacidadFallida(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = {
+  val cursAuls = for {
+    i <- (0 until cursos.length)
+  } yield (cursos(i)._4, aulas(a(i))._2)
+  cursAuls.count(p => p._2 < p._1)
+}
+```
+
+Esta funcion **no es recursiva**. Usa una `for`-comprehension para
+construir un vector de tuplas `(cantEstudiantes, capacidadAula)` y
+luego cuenta cuantas aulas tienen capacidad insuficiente.
+
+### Proceso de `capacidadFallida`
+
+La funcion opera en dos etapas:
+
+**Etapa 1 — `for`-comprehension:** para cada indice `i`, extrae la
+cantidad de estudiantes del curso `cursos(i)._4` y la capacidad del
+aula asignada `aulas(a(i))._2`, formando la tupla correspondiente.
+
+**Etapa 2 — `count`:** cuenta las tuplas donde la capacidad del aula
+es estrictamente menor que la cantidad de estudiantes (`p._2 < p._1`).
+
+### Ejemplo no trivial: prueba "un curso falla"
+
+**Datos de entrada:**
+
+```scala
+val aulas  = Vector(("E1",30), ("E2",40), ("E3",50))
+val cursos = Vector(("C1",0,2,25), ("C2",2,4,35), ("C3",4,6,45), ("C4",6,8,55))
+val a      = Vector(0, 1, 2, 2)
+// C1 → E1(30), C2 → E2(40), C3 → E3(50), C4 → E3(50)
+```
+
+**Etapa 1 — construccion del vector de tuplas:**
+
+| i | `cursos(i)._4` (est) | `a(i)` | `aulas(a(i))._2` (cap) | tupla |
+|---|----------------------|--------|------------------------|-------|
+| 0 | 25 | 0 | 30 | `(25, 30)` |
+| 1 | 35 | 1 | 40 | `(35, 40)` |
+| 2 | 45 | 2 | 50 | `(45, 50)` |
+| 3 | 55 | 2 | 50 | `(55, 50)` |
+
+```
+cursAuls = Vector((25,30), (35,40), (45,50), (55,50))
+```
+
+**Etapa 2 — `count(p => p._2 < p._1)`:**
+
+| tupla | `cap < est` | cuenta |
+|-------|-------------|--------|
+| `(25, 30)` | `30 < 25` → `false` | no |
+| `(35, 40)` | `40 < 35` → `false` | no |
+| `(45, 50)` | `50 < 45` → `false` | no |
+| `(55, 50)` | `50 < 55` → `true`  | **si** |
+
+**Resultado:** `1` — un curso falla. La prueba verifica `== 1`. ✓
+
+### Diagrama del proceso de `capacidadFallida`
+
+```mermaid
+flowchart TD
+    A["capacidadFallida(cursos, aulas, a)"]
+    A --> B["for i <- 0 until cursos.length\nyield (cursos(i)._4, aulas(a(i))._2)"]
+    B --> C["cursAuls: Vector de tuplas (cantEst, capAula)"]
+    C --> D["count(p => p._2 < p._1)"]
+    D --> E["numero de cursos con capacidad insuficiente"]
+```
+
+---
+
+### Definicion de `desperdicio`
+
+```scala
+def desperdicio(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = {
+  val cursAuls = for {
+    i <- (0 until cursos.length)
+  } yield (cursos(i)._4, aulas(a(i))._2)
+  val listaDesperdicio = cursAuls.toList.filter {
+    case (cantEst, capacidadAuls) => capacidadAuls >= cantEst
+  }.map {
+    case (cantEst, capacidadAuls) => capacidadAuls - cantEst
+  }
+  listaDesperdicio.sum
+}
+```
+
+Esta funcion **no es recursiva**. Usa una `for`-comprehension seguida
+de una cadena `filter` → `map` → `sum` para calcular el total de
+puestos sobrantes en las aulas con capacidad suficiente.
+
+### Proceso de `desperdicio`
+
+La funcion opera en tres etapas:
+
+**Etapa 1 — `for`-comprehension:** identica a `capacidadFallida`,
+construye el vector de tuplas `(cantEstudiantes, capacidadAula)`.
+
+**Etapa 2 — `filter`:** retiene solo las tuplas donde el aula
+tiene capacidad suficiente (`capacidadAuls >= cantEst`). Las aulas
+con capacidad insuficiente no aportan desperdicio.
+
+**Etapa 3 — `map` + `sum`:** calcula la diferencia `capacidadAuls - cantEst`
+para cada tupla filtrada y suma todos los valores.
+
+### Ejemplo no trivial: prueba "cursos sin capacidad suficiente no aportan desperdicio"
+
+**Datos de entrada:**
+
+```scala
+val cursos = Vector(("A",0,2,35), ("B",2,4,20))
+val aulas  = Vector(("E1",30), ("E2",40))
+val a      = Vector(0, 1)
+// A → E1(30), B → E2(40)
+```
+
+**Etapa 1 — construccion del vector de tuplas:**
+
+| i | est | cap | tupla |
+|---|-----|-----|-------|
+| 0 | 35 | 30 | `(35, 30)` |
+| 1 | 20 | 40 | `(20, 40)` |
+
+```
+cursAuls = Vector((35,30), (20,40))
+```
+
+**Etapa 2 — `filter(capacidadAuls >= cantEst)`:**
+
+| tupla | `cap >= est` | pasa |
+|-------|-------------|------|
+| `(35, 30)` | `30 >= 35` → `false` | **descartada** |
+| `(20, 40)` | `40 >= 20` → `true`  | conservada |
+
+```
+filtrado = List((20, 40))
+```
+
+**Etapa 3 — `map` + `sum`:**
+
+```
+(20, 40) → 40 - 20 = 20
+listaDesperdicio = List(20)
+listaDesperdicio.sum = 20
+```
+
+**Resultado:** `20`. La prueba verifica `== 20`. ✓
+
+> El curso A con 35 estudiantes asignado al aula E1 de capacidad 30
+> no aporta desperdicio porque la capacidad es insuficiente. Solo
+> el curso B contribuye con 20 puestos sobrantes.
+
+### Ejemplo adicional: prueba "capacidad exacta produce desperdicio 0"
+
+```scala
+val cursos = Vector(("A",0,2,30), ("B",2,4,40), ("C",4,6,50))
+val aulas  = Vector(("E1",30), ("E2",40), ("E3",50))
+val a      = Vector(0, 1, 2)
+```
+
+**Etapa 1:**
+
+```
+cursAuls = Vector((30,30), (40,40), (50,50))
+```
+
+**Etapa 2 — filter:** todas pasan (`30>=30`, `40>=40`, `50>=50`).
+
+**Etapa 3 — map + sum:**
+
+```
+(30,30) → 30-30 = 0
+(40,40) → 40-40 = 0
+(50,50) → 50-50 = 0
+sum = 0
+```
+
+**Resultado:** `0`. La prueba verifica `== 0`. ✓
+
+### Diagrama del proceso de `desperdicio`
+
+```mermaid
+flowchart TD
+    A["desperdicio(cursos, aulas, a)"]
+    A --> B["for i <- 0 until cursos.length\nyield (cursos(i)._4, aulas(a(i))._2)"]
+    B --> C["cursAuls: Vector de tuplas (cantEst, capAula)"]
+    C --> D["filter: capacidadAuls >= cantEst\n→ descarta aulas insuficientes"]
+    D --> E["map: capacidadAuls - cantEst\n→ puestos sobrantes por aula"]
+    E --> F["sum: total de puestos sobrantes"]
+    F --> G["desperdicio total: Int"]
+```
+
+---
+
+## 2.8. Funcion `generarAsignaciones` (version secuencial)
+
+### Definicion
+
+```scala
+def generarAsignaciones(n: Int, m: Int): Vector[Asignacion] = {
+  if (n == 0)
+    Vector(Vector())
+  else {
+    val anteriorAsignacion = generarAsignaciones(n - 1, m)
+    anteriorAsignacion.flatMap { asignacion =>
+      (0 until m).map { aula => aula +: asignacion }
+    }
+  }
+}
+```
+
+Esta funcion **es recursiva**. Genera todas las asignaciones posibles
+de $m$ aulas para $n$ cursos, produciendo $m^n$ asignaciones en total.
+
+- **Caso base:** `n == 0` — no hay cursos, retorna un vector con
+  una unica asignacion vacia como punto de arranque.
+- **Caso recursivo:** resuelve el problema para `n-1` cursos y luego
+  extiende cada asignacion anterior agregando al frente cada una de
+  las `m` aulas posibles.
+
+### Ejemplo no trivial: `generarAsignaciones(3, 2)`
+
+Con 3 cursos y 2 aulas se esperan $2^3 = 8$ asignaciones.
+
+#### Pila de llamados
+
+**Llamada 1:** `generarAsignaciones(3, 2)`
+- `n != 0` → llama a `generarAsignaciones(2, 2)`
+
+**Llamada 2:** `generarAsignaciones(2, 2)`
+- `n != 0` → llama a `generarAsignaciones(1, 2)`
+
+**Llamada 3:** `generarAsignaciones(1, 2)`
+- `n != 0` → llama a `generarAsignaciones(0, 2)`
+
+**Llamada 4:** `generarAsignaciones(0, 2)`
+- `n == 0` → **caso base**, retorna `Vector(Vector())`
+
+**Desapilando llamada 3:** recibe `Vector(Vector())`
+
+```
+Vector() + aula 0 → Vector(0)
+Vector() + aula 1 → Vector(1)
+retorna Vector(Vector(0), Vector(1))
+```
+
+**Desapilando llamada 2:** recibe `Vector(Vector(0), Vector(1))`
+
+```
+Vector(0) + aula 0 → Vector(0, 0)
+Vector(0) + aula 1 → Vector(1, 0)
+Vector(1) + aula 0 → Vector(0, 1)
+Vector(1) + aula 1 → Vector(1, 1)
+retorna Vector(Vector(0,0), Vector(1,0), Vector(0,1), Vector(1,1))
+```
+
+**Desapilando llamada 1:** recibe las 4 asignaciones anteriores
+
+```
+Vector(0,0) + aula 0 → Vector(0, 0, 0)
+Vector(0,0) + aula 1 → Vector(1, 0, 0)
+Vector(1,0) + aula 0 → Vector(0, 1, 0)
+Vector(1,0) + aula 1 → Vector(1, 1, 0)
+Vector(0,1) + aula 0 → Vector(0, 0, 1)
+Vector(0,1) + aula 1 → Vector(1, 0, 1)
+Vector(1,1) + aula 0 → Vector(0, 1, 1)
+Vector(1,1) + aula 1 → Vector(1, 1, 1)
+retorna Vector de 8 asignaciones
+```
+
+**Resultado final:** 8 asignaciones. La prueba `generarAsignaciones(3,2).length == 8` verifica este caso. ✓
+
+### Diagrama de la pila de llamados
+
+```mermaid
+sequenceDiagram
+    participant G3 as generarAsignaciones(3,2)
+    participant G2 as generarAsignaciones(2,2)
+    participant G1 as generarAsignaciones(1,2)
+    participant G0 as generarAsignaciones(0,2)
+
+    G3->>G2: llamada recursiva n=2
+    G2->>G1: llamada recursiva n=1
+    G1->>G0: llamada recursiva n=0
+    G0-->>G1: Vector(Vector()) caso base
+    G1-->>G2: Vector(Vector(0), Vector(1))
+    G2-->>G3: Vector(Vector(0,0),Vector(1,0),Vector(0,1),Vector(1,1))
+    G3-->>G3: 8 asignaciones finales
+```
+
+
+---
+
+## 2.9. Función `asignacionOptima` y su núcleo recursivo `generarAsignaciones`
 
 ### Definición de `asignacionOptima`
 
@@ -301,4 +599,147 @@ flowchart TD
     C --> D["minBy(_._2)\nseleccionar la de menor costo"]
     D --> E["retornar (asignacionOptima, costoMinimo)"]
 ```
+
+---
+
+## 3.2. Funcion `generarAsignacionesPar` (version paralela)
+
+### Definicion
+
+```scala
+def generarAsignacionesPar(n: Int, m: Int): Vector[Asignacion] = {
+  if (n == 0)
+    Vector(Vector())
+  else {
+    val anteriorAsignacion = generarAsignacionesPar(n - 1, m)
+    def aux(vect: Vector[Int]): Vector[Asignacion] = {
+      if (vect.length == 1)
+        anteriorAsignacion.map(asigAnterior => vect(0) +: asigAnterior)
+      else {
+        val (vect1, vect2) = vect.splitAt(vect.length / 2)
+        val (a, b) = parallel(aux(vect1), aux(vect2))
+        a ++ b
+      }
+    }
+    aux((0 until m).toVector)
+  }
+}
+```
+
+Esta funcion **es recursiva** en dos niveles:
+
+- **Recursion externa** sobre `n`: identica a `generarAsignaciones`,
+  reduce el problema al de `n-1` cursos.
+- **Recursion interna** de `aux` sobre el vector de aulas `(0 until m)`:
+  divide el vector de aulas por la mitad y procesa cada mitad en
+  paralelo con `parallel`, combinando los resultados con `++`.
+
+### Diferencia clave respecto a la version secuencial
+
+| Aspecto | `generarAsignaciones` | `generarAsignacionesPar` |
+|---|---|---|
+| Iteracion sobre aulas | `flatMap` secuencial | `aux` recursiva con `parallel` |
+| Division del trabajo | ninguna | `splitAt(length/2)` |
+| Combinacion | implicita en `flatMap` | `a ++ b` explicita |
+| Caso base de `aux` | N/A | `vect.length == 1` |
+
+### Ejemplo no trivial: `generarAsignacionesPar(2, 4)`
+
+Con 2 cursos y 4 aulas se esperan $4^2 = 16$ asignaciones.
+
+**Paso 1 — recursion externa:**
+
+```
+generarAsignacionesPar(2, 4)
+  → anteriorAsignacion = generarAsignacionesPar(1, 4)
+      → anteriorAsignacion = generarAsignacionesPar(0, 4)
+          → caso base: Vector(Vector())
+      → aux(Vector(0,1,2,3)) sobre Vector(Vector())
+          → splitAt(2): vect1=Vector(0,1), vect2=Vector(2,3)
+          → parallel:
+              aux(Vector(0,1)): Vector(Vector(0), Vector(1))
+              aux(Vector(2,3)): Vector(Vector(2), Vector(3))
+          → a ++ b = Vector(Vector(0),Vector(1),Vector(2),Vector(3))
+      retorna Vector(Vector(0),Vector(1),Vector(2),Vector(3))
+```
+
+**Paso 2 — `aux` sobre 4 aulas con `anteriorAsignacion` de n=1:**
+
+```
+aux(Vector(0,1,2,3))
+  splitAt(2): vect1=Vector(0,1), vect2=Vector(2,3)
+  parallel:
+    aux(Vector(0,1)):
+      splitAt(1): vect1=Vector(0), vect2=Vector(1)
+      parallel:
+        aux(Vector(0)): caso base → Vector(0) +: cada asig anterior
+          → Vector(Vector(0,0),Vector(0,1),Vector(0,2),Vector(0,3))
+        aux(Vector(1)): caso base → Vector(1) +: cada asig anterior
+          → Vector(Vector(1,0),Vector(1,1),Vector(1,2),Vector(1,3))
+      a ++ b = 8 asignaciones con aula 0 o 1 al frente
+
+    aux(Vector(2,3)):
+      splitAt(1): vect1=Vector(2), vect2=Vector(3)
+      parallel:
+        aux(Vector(2)): → Vector(Vector(2,0),...,Vector(2,3))
+        aux(Vector(3)): → Vector(Vector(3,0),...,Vector(3,3))
+      a ++ b = 8 asignaciones con aula 2 o 3 al frente
+
+  resultado final: 16 asignaciones
+```
+
+La prueba `generarAsignaciones(4,2).length == 16` verifica un caso
+equivalente con 4 cursos y 2 aulas. ✓
+
+### Arbol de llamadas paralelas de `aux`
+
+```mermaid
+flowchart TD
+    A["aux(Vector(0,1,2,3))\nsplitAt(2)"]
+    A -->|"parallel izq"| B["aux(Vector(0,1))\nsplitAt(1)"]
+    A -->|"parallel der"| C["aux(Vector(2,3))\nsplitAt(1)"]
+    B -->|"parallel izq"| D["aux(Vector(0))\ncaso base\n→ 0 +: anteriorAsig"]
+    B -->|"parallel der"| E["aux(Vector(1))\ncaso base\n→ 1 +: anteriorAsig"]
+    C -->|"parallel izq"| F["aux(Vector(2))\ncaso base\n→ 2 +: anteriorAsig"]
+    C -->|"parallel der"| G["aux(Vector(3))\ncaso base\n→ 3 +: anteriorAsig"]
+    D & E --> H["a ++ b: asigs con aulas 0 y 1"]
+    F & G --> I["a ++ b: asigs con aulas 2 y 3"]
+    H & I --> J["a ++ b: todas las asignaciones"]
+```
+
+### Diagrama de la pila de llamados completa
+
+```mermaid
+sequenceDiagram
+    participant GP2 as generarAsignacionesPar(2,4)
+    participant GP1 as generarAsignacionesPar(1,4)
+    participant GP0 as generarAsignacionesPar(0,4)
+    participant AUX as aux(0 until 4)
+
+    GP2->>GP1: recursion externa n=1
+    GP1->>GP0: recursion externa n=0
+    GP0-->>GP1: Vector(Vector()) caso base
+    GP1->>AUX: aux(Vector(0,1,2,3)) con anteriorAsig de n=0
+    AUX-->>GP1: Vector(Vector(0),Vector(1),Vector(2),Vector(3))
+    GP1-->>GP2: anteriorAsignacion de n=1
+    GP2->>AUX: aux(Vector(0,1,2,3)) con anteriorAsig de n=1
+    AUX-->>GP2: 16 asignaciones finales
+```
+
+### Correctitud de la paralelizacion
+
+La paralelizacion en `aux` es correcta porque la generacion de
+asignaciones para distintas aulas es completamente independiente:
+el resultado de `aux(vect1)` no depende del resultado de `aux(vect2)`.
+Ambas ramas leen `anteriorAsignacion` pero no la modifican, por lo
+que no hay condiciones de carrera. La combinacion `a ++ b` es
+determinista y produce el mismo resultado que la version secuencial
+con `flatMap`, como verifican las pruebas:
+
+```scala
+assert(generarAsignaciones(2,3).length == 9)
+assert(resultado.distinct.length == resultado.length)
+assert(resultado.forall(asig => asig.forall(aula => aula >= 0 && aula < m)))
+```
+
  
