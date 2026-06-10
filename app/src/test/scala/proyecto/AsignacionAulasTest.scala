@@ -27,6 +27,26 @@ class AsignacionAulasTest extends AnyFunSuite {
     assert(!solapan(("A", 0, 4, 10), ("B", 4, 8, 10)))
   }
 
+  test("solapan: mismo horario exacto [4,8) y [4,8) se solapan") {
+    assert(solapan(("X", 4, 8, 20), ("Y", 4, 8, 20)))
+  }
+
+  test("solapan: un curso dentro de otro [2,10) y [4,6) se solapan") {
+    assert(solapan(("X", 2, 10, 20), ("Y", 4, 6, 15)))
+  }
+
+  test("solapan: se tocan al final [0,6) y [6,10) no se solapan") {
+    assert(!solapan(("X", 0, 6, 20), ("Y", 6, 10, 15)))
+  }
+
+  test("solapan: separados con brecha [0,3) y [5,8) no se solapan") {
+    assert(!solapan(("X", 0, 3, 20), ("Y", 5, 8, 15)))
+  }
+
+  test("solapan: cruce parcial invertido [6,10) y [4,8) se solapan") {
+    assert(solapan(("X", 6, 10, 20), ("Y", 4, 8, 15)))
+  }
+
   // choques
   test("choques: asignacion [0,0,1] tiene 1 choque (M01 y M02 en E101)") {
     assert(choques(c1, Vector(0, 0, 1)) == 1)
@@ -34,6 +54,37 @@ class AsignacionAulasTest extends AnyFunSuite {
 
   test("choques: asignacion [0,1,0] no tiene choques") {
     assert(choques(c1, Vector(0, 1, 0)) == 0)
+  }
+
+  test("choques: todos en aulas distintas, no hay choques") {
+    val cursos = Vector(("C1", 0, 4, 20), ("C2", 0, 4, 20), ("C3", 0, 4, 20))
+    val asig   = Vector(0, 1, 2)
+    assert(choques(cursos, asig) == 0)
+  }
+
+  test("choques: tres cursos en la misma aula y todos se solapan, hay 3 choques") {
+    val cursos = Vector(("C1", 0, 6, 20), ("C2", 2, 8, 20), ("C3", 4, 10, 20))
+    val asig   = Vector(0, 0, 0)
+    assert(choques(cursos, asig) == 3)
+  }
+
+  test("choques: cursos sin asignar (-1) no cuentan como choque") {
+    val cursos = Vector(("C1", 0, 6, 20), ("C2", 2, 8, 20))
+    val asig   = Vector(-1, -1)
+    assert(choques(cursos, asig) == 0)
+  }
+
+  test("choques: dos pares de choques en aulas distintas") {
+    // C1 y C2 chocan en aula 0, C3 y C4 chocan en aula 1
+    val cursos = Vector(("C1", 0, 6, 20), ("C2", 3, 9, 20), ("C3", 0, 6, 20), ("C4", 3, 9, 20))
+    val asig   = Vector(0, 0, 1, 1)
+    assert(choques(cursos, asig) == 2)
+  }
+
+  test("choques: misma aula pero no se solapan, no hay choque") {
+    val cursos = Vector(("C1", 0, 4, 20), ("C2", 4, 8, 20), ("C3", 8, 12, 20))
+    val asig   = Vector(0, 0, 0)
+    assert(choques(cursos, asig) == 0)
   }
 
   // capacidadFallida
