@@ -50,5 +50,19 @@ object AsignacionAulasPar {
    * divide el espacio de candidatos en dos mitades y combina los mínimos.
    */
   def asignacionOptimaPar(cursos: Cursos, aulas: Aulas, d: Distancias,
-                          w: Pesos): (Asignacion, Int) = ???
+                          w: Pesos): (Asignacion, Int) = {
+    // generamos todas las asignaciones posibles
+    val todasLasAsignaciones = generarAsignaciones(cursos.length, aulas.length)
+    // dividimos el espacio en dos mitades
+    val mitad = todasLasAsignaciones.length / 2
+    val mitadIzq = todasLasAsignaciones.take(mitad)
+    val mitadDer = todasLasAsignaciones.drop(mitad)
+    // evaluamos cada mitad en paralelo
+    val (minimoIzq, minimoDer) = parallel(
+      mitadIzq.map(asig => (asig, costoAsignacion(cursos, aulas, d, asig, w))).minBy(_._2),
+      mitadDer.map(asig => (asig, costoAsignacion(cursos, aulas, d, asig, w))).minBy(_._2)
+    )
+    // retornamos el minimo entre los dos resultados
+    if (minimoIzq._2 <= minimoDer._2) minimoIzq else minimoDer
+  }
 }

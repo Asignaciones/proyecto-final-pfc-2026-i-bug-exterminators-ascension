@@ -1,191 +1,182 @@
-# Ejemplo informe de corrección
-
-**Fundamentos de Programación Funcional y Concurrente**  
-Documento realizado por el docente Juan Francisco Díaz.
-
+# Informe de Corrección
+ 
 ---
 
-## Argumentación de corrección de programas
+## 1. Función `solapan`
 
-### Argumentando sobre corrección de programas recursivos
+### Especificación
 
-Sea $f : A \to B$ una función, y $A$ un conjunto definido recursivamente (recordar definición de matemáticas discretas I), como por ejemplo los naturales o las listas.
+Sea $f : \text{Curso} \times \text{Curso} \to \text{Boolean}$ la función que determina si dos cursos se solapan en el tiempo. Dados dos cursos $c_1$ y $c_2$ con intervalos $[\text{ini}_1, \text{fin}_1)$ y $[\text{ini}_2, \text{fin}_2)$, la especificación matemática es:
 
-Sea $P_f$ un programa recursivo (lineal o en árbol) desarrollado en Scala (o en cualquier lenguaje de programación) hecho para calcular $f$:
+$$
+f(c_1, c_2) = \text{ini}_1 < \text{fin}_2 \;\land\; \text{ini}_2 < \text{fin}_1
+$$
+
+### Implementación
 
 ```scala
-def Pf(a: A): B = { // Pf recibe a de tipo A, y devuelve f(a) de tipo B
-  ...
+def solapan(c1: Curso, c2: Curso): Boolean = {
+  val inicio1 = iniCurso(c1)
+  val inicio2 = iniCurso(c2)
+  val final1  = finCurso(c1)
+  val final2  = finCurso(c2)
+  inicio1 < final2 && inicio2 < final1
 }
 ```
 
-¿Cómo argumentar que \$P_f(a)\$ siempre devuelve \$f(a)\$ como respuesta? Es decir, ¿cómo argumentar que \$P_f\$ es correcto con respecto a su especificación?
+### Argumentación de corrección
 
-La respuesta es sencilla, demostrando el siguiente teorema:
-
-$$
-\forall a \in A : P_f(a) == f(a)
-$$
-
-Cuando uno tiene que demostrar que algo se cumple para todos los elementos de un conjunto definido recursivamente, es natural usar **inducción estructural**.
-
-En términos prácticos, esto significa demostrar que:
-
-- Para cada valor básico \$a\$ de \$A\$, se tiene que \$P_f(a) == f(a)\$.
-- Para cada valor \$a \in A\$ construido recursivamente a partir de otro(s) valor(es) \$a' \in A\$, se tiene que \$P_f(a') == f(a') \rightarrow P_f(a) == f(a)\$ (hipótesis de inducción).
-
----
-
-#### Ejemplo: Factorial Recursivo
-
-Sea \$f : \mathbb{N} \to \mathbb{N}\$ la función que calcula el factorial de un número natural, \$f(n) = n!\$.
-
-Programa en Scala:
-
-```scala
-def Pf(n: Int): Int = {
-  if (n == 0) 1 else n * Pf(n - 1)
-}
-```
+Esta función no es recursiva, por lo tanto se argumenta su corrección directamente evaluando la expresión retornada.
 
 Queremos demostrar que:
 
 $$
-\forall n \in \mathbb{N} : P_f(n) == n!
+\forall c_1, c_2 \in \text{Curso} : P_f(c_1, c_2) == f(c_1, c_2)
 $$
 
-- **Caso base**: \$n = 0\$
+**Demostración:**
+
+Las funciones de acceso `iniCurso` y `finCurso` extraen exactamente los campos correspondientes de cada curso, por lo tanto:
 
 $$
-P_f(0) \to 1 \quad \land \quad f(0) = 0! = 1
+\text{inicio1} = \text{ini}_{c_1}, \quad \text{inicio2} = \text{ini}_{c_2}, \quad \text{final1} = \text{fin}_{c_1}, \quad \text{final2} = \text{fin}_{c_2}
 $$
 
-Entonces \$P_f(0) == f(0)\$.
-
-- **Caso inductivo**: \$n = k+1\$, \$k \geq 0\$.
+La expresión retornada es:
 
 $$
-P_f(k+1) \to (k+1) \cdot P_f(k)
+P_f(c_1, c_2) \to \text{inicio1} < \text{final2} \;\land\; \text{inicio2} < \text{final1}
 $$
 
-Usando la hipótesis de inducción:
+Sustituyendo:
 
 $$
-\to (k+1) \cdot k! = (k+1)!
+\to \text{ini}_{c_1} < \text{fin}_{c_2} \;\land\; \text{ini}_{c_2} < \text{fin}_{c_1}
 $$
 
-Por lo tanto, \$P_f(k+1) == f(k+1)\$.
+Que es exactamente $f(c_1, c_2)$.
 
-**Conclusión**: \$\forall n \in \mathbb{N} : P_f(n) == n!\$
+**Conclusión:**
 
+$$
+\forall c_1, c_2 \in \text{Curso} : P_f(c_1, c_2) == f(c_1, c_2) \quad \checkmark
+$$
+ 
 ---
 
-#### Ejemplo: El máximo de una lista
+## 2. Función `choques`
 
-Sea \$f : \text{List}\[\mathbb{N}] \to \mathbb{N}\$ la función que calcula el máximo de una lista no vacía.
+### Especificación
 
-Programa en Scala:
+Sea $f : \text{Cursos} \times \text{Asignacion} \to \mathbb{N}$ la función que cuenta el número de pares $(i, j)$ con $i < j$ tales que $\alpha_i = \alpha_j \geq 0$ y los cursos $i$ y $j$ se solapan. Formalmente:
+
+$$
+f(\text{cursos}, \alpha) = \left|\{(i,j) \mid 0 \leq i < j < n,\; \alpha_i = \alpha_j \geq 0,\; \text{solapan}(c_i, c_j)\}\right|
+$$
+
+### Implementación
 
 ```scala
-def maxLin(l: List[Int]): Int = {
-  if (l.tail.isEmpty) l.head
-  else math.max(maxLin(l.tail), l.head)
+def choques(cursos: Cursos, a: Asignacion): Int = {
+  val pares = for {
+    i <- 0 until cursos.length
+    j <- (i + 1) until cursos.length
+    if a(i) >= 0 && a(j) >= 0
+    if a(i) == a(j)
+    if solapan(cursos(i), cursos(j))
+  } yield 1
+  pares.length
 }
 ```
+
+### Argumentación de corrección
+
+Esta función tampoco es recursiva. Se argumenta su corrección mostrando que la `for`-comprehension genera exactamente el conjunto descrito en la especificación.
 
 Queremos demostrar que:
 
 $$
-\forall n \in \mathbb{N} \setminus \{0\} :
-P_f(\text{List}(a_1, \ldots, a_n)) == f(\text{List}(a_1, \ldots, a_n))
+\forall \text{cursos} \in \text{Cursos},\; \alpha \in \text{Asignacion} : P_f(\text{cursos}, \alpha) == f(\text{cursos}, \alpha)
 $$
 
-- **Caso base**: \$n=1\$.
+**Demostración:**
+
+La `for`-comprehension recorre todos los pares $(i, j)$ con $0 \leq i < j < n$, que corresponde exactamente al conjunto de índices válidos de la especificación. Para cada par aplica tres filtros:
+
+1. $\alpha_i \geq 0 \;\land\; \alpha_j \geq 0$ — ambos cursos tienen aula asignada.
+2. $\alpha_i = \alpha_j$ — los cursos comparten aula.
+3. $\text{solapan}(c_i, c_j)$ — los cursos se solapan en tiempo.
+   Un par $(i,j)$ produce un $1$ si y solo si cumple los tres filtros, lo cual coincide exactamente con la condición de la especificación. Por lo tanto:
 
 $$
-P_f(\text{List}(a_1)) \to a_1 \quad \land \quad f(\text{List}(a_1)) = a_1
+\text{pares} = \{1 \mid (i,j) \text{ cumple las tres condiciones}\}
 $$
 
-- **Caso inductivo**: \$n=k+1\$.
+Y como la corrección de `solapan` ya fue demostrada:
 
 $$
-P_f(L) \to \text{math.max}(P_f(\text{List}(a_2, \ldots, a_{k+1})), a_1)
+P_f(\text{cursos}, \alpha) = |\text{pares}| = f(\text{cursos}, \alpha)
 $$
 
-Dependiendo del mayor entre \$a_1\$ y \$b\$ (el máximo del resto de la lista), se cumple que \$P_f(L) == f(L)\$.
-
-**Conclusión**:
+**Conclusión:**
 
 $$
-\forall n \in \mathbb{N} \setminus \{0\} : P_f(\text{List}(a_1, \ldots, a_n)) == f(\text{List}(a_1, \ldots, a_n))
+\forall \text{cursos}, \alpha : P_f(\text{cursos}, \alpha) == f(\text{cursos}, \alpha) \quad \checkmark
 $$
-
+ 
 ---
 
-### Argumentando sobre corrección de programas iterativos
+## 3. Función  `asignacionOptima`
 
-Para argumentar la corrección de programas iterativos, se debe formalizar cómo es la iteración:
+#### Especificación
 
-- Representación de un estado \$s\$.
-- Estado inicial \$s_0\$.
-- Estado final \$s_f\$.
-- Invariante de la iteración \$\text{Inv}(s)\$.
-- Transformación de estados \$\text{transformar}(s)\$.
+Sea $f : \text{Cursos} \times \text{Aulas} \times \text{Distancias} \times \text{Pesos} \to \text{Asignacion} \times \mathbb{N}$ la función que devuelve la asignación de mínimo costo total. Formalmente:
 
-Programa iterativo genérico:
+$$
+f(C, A, D, w) = \arg\min_{\alpha \in \{0,\ldots,m-1\}^n} \text{CT}^\alpha_{C,A,D}
+$$
+
+#### Implementación
 
 ```scala
-def Pf(a: A): B = {
-  def Pf_iter(s: Estado): B =
-    if (esFinal(s)) respuesta(s) else Pf_iter(transformar(s))
-  Pf_iter(s0)
+def asignacionOptima(cursos: Cursos, aulas: Aulas, d: Distancias,
+                     w: Pesos): (Asignacion, Int) = {
+  val todasLasAsignaciones = generarAsignaciones(cursos.length, aulas.length)
+  todasLasAsignaciones
+    .map(asig => (asig, costoAsignacion(cursos, aulas, d, asig, w)))
+    .minBy(_._2)
 }
 ```
 
----
+#### Argumentación de corrección
 
-#### Ejemplo: Factorial Iterativo
-
-```scala
-def Pf(n: Int): Int = {
-  def Pf_iter(i: Int, n: Int, ac: Int): Int =
-    if (i > n) ac else Pf_iter(i + 1, n, i * ac)
-  Pf_iter(1, n, 1)
-}
-```
-
-- Estado \$s = (i, n, ac)\$
-- Estado inicial \$s_0 = (1, n, 1)\$
-- Estado final: \$i = n+1\$
-- Invariante: \$\text{Inv}(i,n,ac) \equiv i \leq n+1 \land ac = (i-1)!\$
-- Transformación: \$(i, n, ac) \to (i+1, n, i \cdot ac)\$
-
-Por inducción sobre la iteración, se demuestra que al llegar a \$s_f\$, \$ac = n!\$.
-
----
-
-#### Ejemplo: El máximo de una lista
-
-```scala
-def maxIt(l: List[Int]): Int = {
-  def maxAux(max: Int, l: List[Int]): Int = {
-    if (l.isEmpty) max
-    else maxAux(math.max(max, l.head), l.tail)
-  }
-  maxAux(l.head, l.tail)
-}
-```
-
-- Estado \$s = (max, l)\$
-- Estado inicial \$s_0 = (a_1, \text{List}(a_2, \ldots, a_k))\$
-- Estado final: \$l = \text{List}()\$
-- Invariante: \$\text{Inv}(max, l) \equiv max = f(\text{prefijo})\$
-- Transformación: \$(max, l) \to (\text{math.max}(max, l.head), l.tail)\$
-
-Por inducción, al llegar al estado final, \$max = f(L)\$.
-
-**Conclusión**:
+Queremos demostrar que:
 
 $$
-P_f(L) == f(L)
+\forall C, A, D, w : P_f(C, A, D, w) == f(C, A, D, w)
+$$
+
+**Demostración:**
+
+1. Por la corrección de `generarAsignaciones` demostrada anteriormente, `todasLasAsignaciones` contiene exactamente todos los elementos de $\{0,\ldots,m-1\}^n$.
+2. El `.map` aplica `costoAsignacion` a cada asignación, produciendo el conjunto:
+   $$
+   S = \{(\alpha, \text{CT}^\alpha_{C,A,D}) \mid \alpha \in \{0,\ldots,m-1\}^n\}
+   $$
+
+3. `.minBy(_._2)` selecciona el par $(\alpha^*, c^*)$ tal que:
+   $$
+   c^* = \min_{(\alpha, c) \in S} c = \min_{\alpha \in \{0,\ldots,m-1\}^n} \text{CT}^\alpha_{C,A,D}
+   $$
+
+Como $S$ contiene todas las asignaciones posibles y `.minBy` es exhaustivo sobre $S$, el resultado es efectivamente el mínimo global.
+
+$$
+P_f(C, A, D, w) == f(C, A, D, w) \quad \checkmark
+$$
+
+**Conclusión:**
+
+$$
+\forall C, A, D, w : P_f(C, A, D, w) == \arg\min_{\alpha \in \{0,\ldots,m-1\}^n} \text{CT}^\alpha_{C,A,D} \quad \checkmark
 $$

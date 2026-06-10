@@ -27,6 +27,26 @@ class AsignacionAulasTest extends AnyFunSuite {
     assert(!solapan(("A", 0, 4, 10), ("B", 4, 8, 10)))
   }
 
+  test("solapan: mismo horario exacto [4,8) y [4,8) se solapan") {
+    assert(solapan(("X", 4, 8, 20), ("Y", 4, 8, 20)))
+  }
+
+  test("solapan: un curso dentro de otro [2,10) y [4,6) se solapan") {
+    assert(solapan(("X", 2, 10, 20), ("Y", 4, 6, 15)))
+  }
+
+  test("solapan: se tocan al final [0,6) y [6,10) no se solapan") {
+    assert(!solapan(("X", 0, 6, 20), ("Y", 6, 10, 15)))
+  }
+
+  test("solapan: separados con brecha [0,3) y [5,8) no se solapan") {
+    assert(!solapan(("X", 0, 3, 20), ("Y", 5, 8, 15)))
+  }
+
+  test("solapan: cruce parcial invertido [6,10) y [4,8) se solapan") {
+    assert(solapan(("X", 6, 10, 20), ("Y", 4, 8, 15)))
+  }
+
   // choques
   test("choques: asignacion [0,0,1] tiene 1 choque (M01 y M02 en E101)") {
     assert(choques(c1, Vector(0, 0, 1)) == 1)
@@ -34,6 +54,37 @@ class AsignacionAulasTest extends AnyFunSuite {
 
   test("choques: asignacion [0,1,0] no tiene choques") {
     assert(choques(c1, Vector(0, 1, 0)) == 0)
+  }
+
+  test("choques: todos en aulas distintas, no hay choques") {
+    val cursos = Vector(("C1", 0, 4, 20), ("C2", 0, 4, 20), ("C3", 0, 4, 20))
+    val asig   = Vector(0, 1, 2)
+    assert(choques(cursos, asig) == 0)
+  }
+
+  test("choques: tres cursos en la misma aula y todos se solapan, hay 3 choques") {
+    val cursos = Vector(("C1", 0, 6, 20), ("C2", 2, 8, 20), ("C3", 4, 10, 20))
+    val asig   = Vector(0, 0, 0)
+    assert(choques(cursos, asig) == 3)
+  }
+
+  test("choques: cursos sin asignar (-1) no cuentan como choque") {
+    val cursos = Vector(("C1", 0, 6, 20), ("C2", 2, 8, 20))
+    val asig   = Vector(-1, -1)
+    assert(choques(cursos, asig) == 0)
+  }
+
+  test("choques: dos pares de choques en aulas distintas") {
+    // C1 y C2 chocan en aula 0, C3 y C4 chocan en aula 1
+    val cursos = Vector(("C1", 0, 6, 20), ("C2", 3, 9, 20), ("C3", 0, 6, 20), ("C4", 3, 9, 20))
+    val asig   = Vector(0, 0, 1, 1)
+    assert(choques(cursos, asig) == 2)
+  }
+
+  test("choques: misma aula pero no se solapan, no hay choque") {
+    val cursos = Vector(("C1", 0, 4, 20), ("C2", 4, 8, 20), ("C3", 8, 12, 20))
+    val asig   = Vector(0, 0, 0)
+    assert(choques(cursos, asig) == 0)
   }
 
   // capacidadFallida
@@ -224,6 +275,8 @@ class AsignacionAulasTest extends AnyFunSuite {
     assert(desperdicio(cursos,aulas,Vector(1,0)) == 20)
   }
 
+  // movilidad
+
   // costoAsignacion
   test("costoAsignacion: asignacion [0,0,1] cuesta 1031") {
     assert(costoAsignacion(c1, a1, d1, Vector(0, 0, 1), w) == 1031)
@@ -231,6 +284,47 @@ class AsignacionAulasTest extends AnyFunSuite {
 
   test("costoAsignacion: asignacion [0,1,0] cuesta 37") {
     assert(costoAsignacion(c1, a1, d1, Vector(0, 1, 0), w) == 37)
+  }
+
+  test("costoAsignacion: sin choques ni fallos ni movilidad, solo desperdicio") {
+    val cursos = Vector(("C1", 0, 4, 10))
+    val aulas  = Vector(("E1", 30))
+    val dist   = Vector(Vector(0))
+    val pesos  = (1000, 100, 1, 2)
+    // DE = 30-10 = 20, todo lo demas 0
+    assert(costoAsignacion(cursos, aulas, dist, Vector(0), pesos) == 20)
+  }
+
+  test("costoAsignacion: ejemplo 2 asignacion [0,1,0,1] cuesta 155") {
+    val c2 = Vector(("F01", 0, 4, 40), ("F02", 4, 8, 25), ("F03", 8, 12, 50), ("F04", 12, 16, 15))
+    val a2 = Vector(("S201", 45), ("S202", 30))
+    val d2 = Vector(Vector(0, 5), Vector(5, 0))
+    assert(costoAsignacion(c2, a2, d2, Vector(0, 1, 0, 1), (1000, 100, 1, 2)) == 155)
+  }
+
+  test("costoAsignacion: ejemplo 2 asignacion [0,1,1,0] cuesta 160") {
+    val c2 = Vector(("F01", 0, 4, 40), ("F02", 4, 8, 25), ("F03", 8, 12, 50), ("F04", 12, 16, 15))
+    val a2 = Vector(("S201", 45), ("S202", 30))
+    val d2 = Vector(Vector(0, 5), Vector(5, 0))
+    assert(costoAsignacion(c2, a2, d2, Vector(0, 1, 1, 0), (1000, 100, 1, 2)) == 160)
+  }
+
+  test("costoAsignacion: todos en la misma aula con choque, penalizacion alta") {
+    val cursos = Vector(("C1", 0, 6, 10), ("C2", 3, 9, 10))
+    val aulas  = Vector(("E1", 20))
+    val dist   = Vector(Vector(0))
+    val pesos  = (1000, 100, 1, 2)
+    // CH=1, CF=0, DE=10+10=20, MV=0
+    assert(costoAsignacion(cursos, aulas, dist, Vector(0, 0), pesos) == 1020)
+  }
+
+  test("costoAsignacion: curso con aula insuficiente suma penalizacion por CF") {
+    val cursos = Vector(("C1", 0, 4, 50), ("C2", 5, 9, 10))
+    val aulas  = Vector(("E1", 30), ("E2", 20))
+    val dist   = Vector(Vector(0, 3), Vector(3, 0))
+    val pesos  = (1000, 100, 1, 2)
+    // CH=0, CF=1 (C1 no cabe en E1), DE=20-10=10, MV=3
+    assert(costoAsignacion(cursos, aulas, dist, Vector(0, 1), pesos) == 116)
   }
 
   // generarAsignaciones
