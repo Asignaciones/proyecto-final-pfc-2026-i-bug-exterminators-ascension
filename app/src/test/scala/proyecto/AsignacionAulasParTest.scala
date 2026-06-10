@@ -34,8 +34,38 @@ class AsignacionAulasParTest extends AnyFunSuite {
     assert(generarAsignacionesPar(2, 2).length == 4)
   }
 
+  //
+  test("generarAsignacionesPar: 0 cursos devuelve una asignacion vacia") {
+    assert(
+      generarAsignacionesPar(0,5) == Vector(Vector()))
+  }
+
+  //
+
+  test("generarAsignaciones: contiene la asignacion Vector(0,2,1)") {
+    val resultado = generarAsignaciones(3,3)
+    assert(
+      resultado.contains(Vector(0,2,1)))
+  }
+  //
+  test("generarAsignaciones: ninguna asignacion tiene aulas fuera del rango caso extremo") {
+    val resultado = generarAsignaciones(3,4)
+    assert(resultado.forall(asignacion =>
+      asignacion.forall(aula => aula >= 0 && aula < 4)))
+  }
+   //
+  test("generarAsignaciones: todas las asignaciones son diferentes") {
+    val resultado = generarAsignaciones(2,3)
+    assert(resultado.distinct.length == resultado.length)
+  }
+  //
+  test("generarAsignaciones: 4 cursos y 2 aulas genera 16 asignaciones") {
+    assert(generarAsignaciones(4,2).length == 16)
+  }
+
   test("asignacionOptimaPar: el costo de la optima no supera el de [0,1,0] (37)") {
     val (_, costo) = asignacionOptimaPar(c1, a1, d1, w)
     assert(costo <= 37)
   }
+  
 }

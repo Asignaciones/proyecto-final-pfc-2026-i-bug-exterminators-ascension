@@ -280,5 +280,5 @@ class AsignacionAulasTest extends AnyFunSuite {
     assert(costo <= 37)
   }
 
-  
+
 }
