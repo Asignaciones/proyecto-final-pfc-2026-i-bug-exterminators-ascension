@@ -51,12 +51,16 @@ object AsignacionAulas {
   // ---------------------------------------------------------------------------
 
   def idCurso(c: Curso): String = c._1
-  def iniCurso(c: Curso): Int   = c._2
-  def finCurso(c: Curso): Int   = c._3
-  def estCurso(c: Curso): Int   = c._4
 
-  def idAula(a: Aula): String   = a._1
-  def capAula(a: Aula): Int     = a._2
+  def iniCurso(c: Curso): Int = c._2
+
+  def finCurso(c: Curso): Int = c._3
+
+  def estCurso(c: Curso): Int = c._4
+
+  def idAula(a: Aula): String = a._1
+
+  def capAula(a: Aula): Int = a._2
 
   // ---------------------------------------------------------------------------
   // Funciones a implementar
@@ -80,12 +84,12 @@ object AsignacionAulas {
    */
   def choques(cursos: Cursos, a: Asignacion): Int = {
     val pares = for {
-      i <- 0 until cursos.length          // se recorre cada curso
-      j <- (i + 1) until cursos.length    // luego se compara con los que vienen después
-      if a(i) >= 0 && a(j) >= 0                // se hace la verificacion para que los cursos tengan una aula asignada
-      if a(i) == a(j)                          // y se verifica si los cursos usan la misma aula
-      if solapan(cursos(i), cursos(j))         // ademas que sus horarios se superpongan
-    } yield 1                                  // despues si se cumple todo esto se se cuenta un choque
+      i <- 0 until cursos.length // se recorre cada curso
+      j <- (i + 1) until cursos.length // luego se compara con los que vienen después
+      if a(i) >= 0 && a(j) >= 0 // se hace la verificacion para que los cursos tengan una aula asignada
+      if a(i) == a(j) // y se verifica si los cursos usan la misma aula
+      if solapan(cursos(i), cursos(j)) // ademas que sus horarios se superpongan
+    } yield 1 // despues si se cumple todo esto se se cuenta un choque
 
     // el resultado sera el total de choques que halla en pares
     pares.length
@@ -93,11 +97,11 @@ object AsignacionAulas {
 
   /** Cantidad de cursos cuya aula asignada tiene capacidad menor al número de estudiantes. */
   def capacidadFallida(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = {
-   val cursAuls = for{
-      i<- (0 until cursos.length)
-    }yield (cursos(i)._4,aulas(a(i))._2) //Se crea un vector de tuplas donde esta la cantidad de estudiantes i ,la capacidad del aula j(posicion dada por la asignacion)
+    val cursAuls = for {
+      i <- (0 until cursos.length)
+    } yield (cursos(i)._4, aulas(a(i))._2) //Se crea un vector de tuplas donde esta la cantidad de estudiantes i ,la capacidad del aula j(posicion dada por la asignacion)
     //Condicion capacidadAulas < a cantidad de estudiantes
-    cursAuls.count(p=>p._2<p._1)//Count permite contar todas las tuplas que cumplen exactamente la condicion
+    cursAuls.count(p => p._2 < p._1) //Count permite contar todas las tuplas que cumplen exactamente la condicion
   }
 
   /**
@@ -106,18 +110,18 @@ object AsignacionAulas {
    */
   def desperdicio(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = {
 
-    val cursAuls = for{
-      i<- (0 until cursos.length)
-    }yield (cursos(i)._4,aulas(a(i))._2) //Se crea un vector de tuplas donde esta la cantidad de estudiantes i ,la capacidad del aula j(posicion dada por la asignacion)
+    val cursAuls = for {
+      i <- (0 until cursos.length)
+    } yield (cursos(i)._4, aulas(a(i))._2) //Se crea un vector de tuplas donde esta la cantidad de estudiantes i ,la capacidad del aula j(posicion dada por la asignacion)
 
-    val listaDesperdicio = cursAuls.toList.filter{
-      case (cantEst,capacidadAuls)=>
+    val listaDesperdicio = cursAuls.toList.filter {
+      case (cantEst, capacidadAuls) =>
         capacidadAuls >= cantEst //Filtro de las aulas que si tienen suficiente capacidad para almacenar estudiantes
-    }.map{
-      case (cantEst,capacidadAuls)=>
+    }.map {
+      case (cantEst, capacidadAuls) =>
         capacidadAuls - cantEst //Se resta la capacidad del aula con la cantidad de estudiantes
-    }                          //Se hace esto para poder calcular el desperdicio es decir cuantas aulas quedan libres ejemplo si son 30 - 25 = 5 esos 5 representan los puestos sobrantes
-    listaDesperdicio.sum//Al final se suman todos los desperdicios calculados incluyendo si no hubo desperdicio ya que si no lo hubo el valor seria 0(indicando que no hubo nada de desperdicio)
+    } //Se hace esto para poder calcular el desperdicio es decir cuantas aulas quedan libres ejemplo si son 30 - 25 = 5 esos 5 representan los puestos sobrantes
+    listaDesperdicio.sum //Al final se suman todos los desperdicios calculados incluyendo si no hubo desperdicio ya que si no lo hubo el valor seria 0(indicando que no hubo nada de desperdicio)
   }
 
   /**
@@ -127,7 +131,23 @@ object AsignacionAulas {
 
 
   def movilidad(cursos: Cursos, aulas: Aulas, d: Distancias,
-                a: Asignacion): Int = ???
+                a: Asignacion): Int = {
+    // esta implementacion la hago mientras mis compañeros la hacen a su manera
+    // ya que es necesaria para asignacionOptima()
+
+    // tomamos solo los cursos que tienen aula asignada
+    val cursosAsignados = cursos.indices.filter(i => a(i) >= 0)
+    // los ordenamos por hora de inicio
+    val ordenados = cursosAsignados.sortBy(i => iniCurso(cursos(i)))
+    // si hay menos de 2 cursos no hay desplazamiento
+    if (ordenados.length < 2)
+      0
+    else {
+      // recorremos pares consecutivos y sumamos la distancia entre sus aulas
+      val pares = ordenados.zip(ordenados.tail)
+      pares.map { case (i, j) => d(a(i))(a(j)) }.sum
+    }
+  }
 
   /** Costo total: w_CH * CH + w_CF * CF + w_DE * DE + w_MV * MV. */
   def costoAsignacion(cursos: Cursos, aulas: Aulas, d: Distancias,
@@ -154,14 +174,15 @@ object AsignacionAulas {
    * El tamaño del resultado es m^n.
    */
   def generarAsignaciones(n: Int, m: Int): Vector[Asignacion] = {
-    if (n==0)
-      Vector(Vector())//Caso base devuelve vector de vector vacio como punto de arranque para construir las posibles asignaciones
+    if (n == 0)
+      Vector(Vector()) //Caso base devuelve vector de vector vacio como punto de arranque para construir las posibles asignaciones
     else {
-     val anteriorAsignacion= generarAsignaciones(n-1,m)
-        anteriorAsignacion.flatMap{
-        asignacion=>(0 until m).map{// se crea el punto de partida (0 hasta m-1) ejemplo si m es 2 quedaria (0,1)
-          aulas => aulas+:asignacion//Se agrega 0 y 1 ala asignacion anterior la cual va acumulando los resultados de cada marco de pila
-        }
+      val anteriorAsignacion = generarAsignaciones(n - 1, m)
+      anteriorAsignacion.flatMap {
+        asignacion =>
+          (0 until m).map { // se crea el punto de partida (0 hasta m-1) ejemplo si m es 2 quedaria (0,1)
+            aulas => aulas +: asignacion //Se agrega 0 y 1 ala asignacion anterior la cual va acumulando los resultados de cada marco de pila
+          }
       }
     }
   }
@@ -171,5 +192,10 @@ object AsignacionAulas {
    * Usa generarAsignaciones para explorar el espacio.
    */
   def asignacionOptima(cursos: Cursos, aulas: Aulas, d: Distancias,
-                       w: Pesos): (Asignacion, Int) = ???
+                       w: Pesos): (Asignacion, Int) = {
+    val todasLasAsignaciones = generarAsignaciones(cursos.length, aulas.length)
+    todasLasAsignaciones
+      .map(asig => (asig, costoAsignacion(cursos, aulas, d, asig, w)))
+      .minBy(_._2)
+  }
 }
