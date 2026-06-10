@@ -193,9 +193,12 @@ object AsignacionAulas {
    */
   def asignacionOptima(cursos: Cursos, aulas: Aulas, d: Distancias,
                        w: Pesos): (Asignacion, Int) = {
+    // generamos todas las combinaciones posibles de aulas para los cursos
     val todasLasAsignaciones = generarAsignaciones(cursos.length, aulas.length)
+    // a cada asignacion le calculamos su costo total
     todasLasAsignaciones
       .map(asig => (asig, costoAsignacion(cursos, aulas, d, asig, w)))
+      // retornamos la que tenga el menor costo
       .minBy(_._2)
   }
 }
