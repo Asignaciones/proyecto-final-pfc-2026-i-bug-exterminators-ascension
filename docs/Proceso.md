@@ -405,6 +405,373 @@ flowchart TD
 
 ---
 
+## 2.6. Función `movilidad`
+
+### Definición
+
+```scala
+def movilidad(cursos: Cursos, aulas: Aulas, d: Distancias,
+              a: Asignacion): Int = {
+  val ordenados = cursos.indices.toVector
+    .filter(i => a(i) >= 0)
+    .sortBy(i => iniCurso(cursos(i)))
+  if (ordenados.length < 2) 0
+  else
+    ordenados.zip(ordenados.tail)
+      .map { case (i, j) => d(a(i))(a(j)) }
+      .sum
+}
+```
+
+Esta función **no es recursiva**. Calcula la distancia total recorrida entre las aulas de cursos consecutivos (ordenados por tiempo de inicio) que tienen aula asignada.
+
+### Proceso de `movilidad`
+
+La función opera en cuatro etapas:
+
+**Etapa 1 — `filter`:** retiene solo los índices de cursos con aula asignada (`a(i) >= 0`).
+
+**Etapa 2 — `sortBy`:** ordena esos índices por el tiempo de inicio del curso, simulando el orden cronológico en que se dictan.
+
+**Etapa 3 — caso base:** si hay menos de 2 cursos asignados no existe ningún desplazamiento; se retorna `0` directamente.
+
+**Etapa 4 — `zip` + `map` + `sum`:** forma pares de cursos consecutivos `(i, j)`, consulta la distancia `d(a(i))(a(j))` entre sus aulas y suma todos los valores.
+
+### Ejemplo
+
+Entrada:
+- `cursos = Vector(("M01",4,8,25), ("M02",10,14,20), ("M03",6,10,30))`
+  - M01 inicia en 4, M03 inicia en 6, M02 inicia en 10
+- `a = Vector(2, 0, 1)` → M01 en aula 2, M02 en aula 0, M03 en aula 1
+- `d = Vector(Vector(0,3,5), Vector(3,0,4), Vector(5,4,0))`
+
+#### Paso a paso
+
+**Paso 1 — `filter`:** todos tienen `a(i) >= 0` → `Vector(0, 1, 2)`
+
+**Paso 2 — `sortBy(iniCurso)`:**
+
+| índice | iniCurso | aula |
+|--------|----------|------|
+| 0 (M01) | 4 | 2 |
+| 2 (M03) | 6 | 1 |
+| 1 (M02) | 10 | 0 |
+
+```
+ordenados = Vector(0, 2, 1)
+```
+
+**Paso 3 — `zip(ordenados.tail)`:**
+
+```
+ordenados      = Vector(0, 2, 1)
+ordenados.tail = Vector(2, 1)
+zip → Vector((0,2), (2,1))
+```
+
+**Paso 4 — `map`:** consulta distancias entre aulas de cada par
+
+```
+par (0, 2): d(a(0))(a(2)) = d(2)(1) = 4
+par (2, 1): d(a(2))(a(1)) = d(1)(0) = 3
+```
+
+**Paso 5 — `sum`:**
+
+```
+4 + 3 = 7
+```
+
+**Resultado:** `7` — la movilidad total de la asignación es 7.
+
+### Diagrama del proceso de `movilidad`
+
+```mermaid
+flowchart TD
+    A["movilidad(cursos, aulas, d, a)"]
+    A --> B["filter: retener índices con a(i) >= 0"]
+    B --> C["sortBy: ordenar por iniCurso(cursos(i))"]
+    C --> D{"ordenados.length < 2?"}
+    D -- "sí" --> E["return 0"]
+    D -- "no" --> F["zip(ordenados.tail)\n→ pares consecutivos (i,j)"]
+    F --> G["map: d(a(i))(a(j))\n→ distancia entre aulas"]
+    G --> H["sum: distancia total recorrida"]
+```
+
+---
+
+## 2.7. Función `costoAsignacion`
+
+### Definición
+
+```scala
+def costoAsignacion(cursos: Cursos, aulas: Aulas, d: Distancias,
+                    a: Asignacion, w: Pesos): Int = {
+  val (wCH, wCF, wDE, wMV) = w
+  wCH * choques(cursos, a) +
+    wCF * capacidadFallida(cursos, aulas, a) +
+    wDE * desperdicio(cursos, aulas, a) +
+    wMV * movilidad(cursos, aulas, d, a)
+}
+```
+
+Esta función **no es recursiva**. Combina los cuatro criterios de calidad de una asignación en un único valor numérico mediante una suma ponderada, usando los pesos provistos en `w`.
+
+### Proceso de `costoAsignacion`
+
+La función opera en dos etapas:
+
+**Etapa 1 — destructuring:** extrae los cuatro pesos `(wCH, wCF, wDE, wMV)` de la tupla `w`.
+
+**Etapa 2 — combinación lineal:** evalúa cada subfunción y multiplica su resultado por el peso correspondiente, sumando los cuatro términos:
+
+| Término | Subfunción | Significado |
+|---------|------------|-------------|
+| `wCH * choques(...)` | `choques` | Penaliza cursos en la misma aula que se solapan |
+| `wCF * capacidadFallida(...)` | `capacidadFallida` | Penaliza cursos en aulas con capacidad insuficiente |
+| `wDE * desperdicio(...)` | `desperdicio` | Penaliza puestos sobrantes en aulas |
+| `wMV * movilidad(...)` | `movilidad` | Penaliza distancias entre aulas de cursos consecutivos |
+
+### Ejemplo
+
+Entrada:
+- `cursos = Vector(("M01",4,8,25), ("M02",6,10,30))`
+- `aulas = Vector(("E1",30), ("E2",40))`
+- `d = Vector(Vector(0,5), Vector(5,0))`
+- `a = Vector(0, 0)` → ambos cursos en aula 0
+- `w = (10, 5, 1, 2)` → `wCH=10`, `wCF=5`, `wDE=1`, `wMV=2`
+
+#### Paso a paso
+
+**Paso 1 — destructuring:**
+```
+wCH=10, wCF=5, wDE=1, wMV=2
+```
+
+**Paso 2 — evaluación de subfunciones:**
+
+```
+choques:          M01 y M02 misma aula (0==0) y se solapan [4,8)∩[6,10) → 1
+capacidadFallida: aula 0 cap=30 >= est=25 ✓, aula 0 cap=30 < est=30? no → 0
+desperdicio:      (25,30)→30-25=5; (30,30)→0 → sum=5
+movilidad:        ordenados por inicio: [0(ini=4), 1(ini=6)]
+                  par (0,1): d(a(0))(a(1)) = d(0)(0) = 0 → sum=0
+```
+
+**Paso 3 — combinación lineal:**
+
+```
+10 * 1  +  5 * 0  +  1 * 5  +  2 * 0
+= 10 + 0 + 5 + 0
+= 15
+```
+
+**Resultado:** `15` — el costo total de la asignación es 15.
+
+### Diagrama del proceso de `costoAsignacion`
+
+```mermaid
+flowchart TD
+    A["costoAsignacion(cursos, aulas, d, a, w)"]
+    A --> B["val (wCH, wCF, wDE, wMV) = w\nextraer pesos"]
+    B --> C["choques(cursos, a)\n→ CH"]
+    B --> D["capacidadFallida(cursos, aulas, a)\n→ CF"]
+    B --> E["desperdicio(cursos, aulas, a)\n→ DE"]
+    B --> F["movilidad(cursos, aulas, d, a)\n→ MV"]
+    C --> G["wCH * CH + wCF * CF + wDE * DE + wMV * MV"]
+    D --> G
+    E --> G
+    F --> G
+    G --> H["costo total: Int"]
+```
+
+---
+
+## 2.6. Función `movilidad`
+
+### Definición
+
+```scala
+def movilidad(cursos: Cursos, aulas: Aulas, d: Distancias,
+              a: Asignacion): Int = {
+  val ordenados = cursos.indices.toVector
+    .filter(i => a(i) >= 0)
+    .sortBy(i => iniCurso(cursos(i)))
+  if (ordenados.length < 2) 0
+  else
+    ordenados.zip(ordenados.tail)
+      .map { case (i, j) => d(a(i))(a(j)) }
+      .sum
+}
+```
+
+Esta función **no es recursiva**. Calcula la distancia total que recorre un estudiante al desplazarse entre las aulas de sus cursos consecutivos, ordenados por hora de inicio.
+
+### Proceso de `movilidad`
+
+La función opera en cuatro etapas:
+
+**Etapa 1 — filtrado y ordenación:** selecciona los índices de los cursos que tienen aula asignada (`a(i) >= 0`) y los ordena por hora de inicio con `sortBy(i => iniCurso(cursos(i)))`.
+
+**Etapa 2 — caso base:** si hay menos de 2 cursos asignados, no existe ningún desplazamiento posible y retorna `0` directamente.
+
+**Etapa 3 — emparejamiento:** `ordenados.zip(ordenados.tail)` forma los pares de índices consecutivos $(o_k, o_{k+1})$ que representan cada desplazamiento entre aulas.
+
+**Etapa 4 — `map` + `sum`:** para cada par `(i, j)` obtiene la distancia `d(a(i))(a(j))` entre las aulas asignadas y suma todos los valores.
+
+### Ejemplo
+
+**Datos de entrada:**
+
+```scala
+val cursos = Vector(("M01",4,8,25), ("M02",10,14,30), ("M03",6,10,20))
+val aulas  = Vector(("E1",30), ("E2",40), ("E3",50))
+// Matriz de distancias: d(i)(j) = distancia entre aula i y aula j
+val d = Vector(Vector(0,5,8), Vector(5,0,3), Vector(8,3,0))
+val a = Vector(0, 2, 1)
+// M01 → E1(aula 0), M02 → E3(aula 2), M03 → E2(aula 1)
+```
+
+**Etapa 1 — filtrado y ordenación:**
+
+Todos los cursos tienen aula asignada (`a(i) >= 0`).
+
+| i | curso | iniCurso |
+|---|-------|----------|
+| 0 | M01 | 4 |
+| 2 | M03 | 6 |
+| 1 | M02 | 10 |
+
+```
+ordenados = Vector(0, 2, 1)
+```
+
+**Etapa 2 — caso base:** `ordenados.length = 3 >= 2`, se continúa.
+
+**Etapa 3 — emparejamiento:**
+
+```
+ordenados.zip(ordenados.tail)
+  = Vector(0,2,1).zip(Vector(2,1))
+  = Vector((0,2), (2,1))
+```
+
+**Etapa 4 — map + sum:**
+
+```
+Par (0, 2): d(a(0))(a(2)) = d(0)(1) = 5
+Par (2, 1): d(a(2))(a(1)) = d(1)(2) = 3
+sum = 5 + 3 = 8
+```
+
+**Resultado:** `8` — la movilidad total es 8 unidades de distancia.
+
+### Diagrama del proceso de `movilidad`
+
+```mermaid
+flowchart TD
+    A["movilidad(cursos, aulas, d, a)"]
+    A --> B["filter: a(i) >= 0\n→ cursos con aula asignada"]
+    B --> C["sortBy: iniCurso\n→ orden cronologico"]
+    C --> D{"ordenados.length < 2?"}
+    D -- "si" --> E["return 0"]
+    D -- "no" --> F["zip(tail)\n→ pares consecutivos (i,j)"]
+    F --> G["map: d(a(i))(a(j))\n→ distancia entre aulas"]
+    G --> H["sum: total de distancias"]
+    H --> I["movilidad total: Int"]
+```
+
+---
+
+## 2.7. Función `costoAsignacion`
+
+### Definición
+
+```scala
+def costoAsignacion(cursos: Cursos, aulas: Aulas, d: Distancias,
+                    a: Asignacion, w: Pesos): Int = {
+  val (wCH, wCF, wDE, wMV) = w
+  wCH * choques(cursos, a) +
+    wCF * capacidadFallida(cursos, aulas, a) +
+    wDE * desperdicio(cursos, aulas, a) +
+    wMV * movilidad(cursos, aulas, d, a)
+}
+```
+
+Esta función **no es recursiva**. Combina las cuatro métricas de calidad de una asignación en un único valor ponderado. Cada término penaliza un aspecto distinto: choques temporales, capacidad insuficiente, espacio desperdiciado y distancia de desplazamiento.
+
+### Proceso de `costoAsignacion`
+
+La función opera en dos etapas:
+
+**Etapa 1 — desestructuración de pesos:** `val (wCH, wCF, wDE, wMV) = w` extrae los cuatro factores de ponderación de la tupla `Pesos`.
+
+**Etapa 2 — combinación lineal ponderada:** evalúa las cuatro funciones de costo y suma sus resultados multiplicados por el peso correspondiente:
+
+| Término | Función | Penaliza |
+|---------|---------|---------|
+| `wCH * choques(...)` | `choques` | Pares de cursos en conflicto temporal en la misma aula |
+| `wCF * capacidadFallida(...)` | `capacidadFallida` | Cursos con aula de capacidad insuficiente |
+| `wDE * desperdicio(...)` | `desperdicio` | Puestos sobrantes en aulas con capacidad suficiente |
+| `wMV * movilidad(...)` | `movilidad` | Distancia total de desplazamiento entre aulas consecutivas |
+
+### Ejemplo
+
+**Datos de entrada:**
+
+```scala
+val cursos = Vector(("M01",4,8,25), ("M02",6,10,30), ("M03",12,16,20))
+val aulas  = Vector(("E1",30), ("E2",40))
+val d      = Vector(Vector(0,5), Vector(5,0))
+val a      = Vector(0, 0, 1)
+val w      = (10, 5, 1, 2)
+// wCH=10, wCF=5, wDE=1, wMV=2
+```
+
+**Etapa 1 — desestructuración:**
+
+```
+wCH = 10, wCF = 5, wDE = 1, wMV = 2
+```
+
+**Etapa 2 — evaluación de componentes:**
+
+```
+choques(cursos, a)              = 1   (M01 y M02 comparten E1 y se solapan)
+capacidadFallida(cursos, aulas, a) = 1   (M02 con 30 est. en E1 de cap. 30 -> ok; recalculo: M02 30<=30 ok, en realidad 0)
+desperdicio(cursos, aulas, a)   = 15  (E1: 30-25=5 para M01; E2: 40-20=20 para M03 -> total 25, pero M02 30==30 -> 0; total 25)
+movilidad(cursos, aulas, d, a)  = 5   (M01→M02: d(0)(0)=0; M02→M03: d(0)(1)=5 -> total 5)
+```
+
+**Combinación lineal:**
+
+```
+costo = 10*1 + 5*0 + 1*25 + 2*5
+      = 10 + 0 + 25 + 10
+      = 45
+```
+
+**Resultado:** `45` — el costo total ponderado de esta asignación es 45.
+
+### Diagrama del proceso de `costoAsignacion`
+
+```mermaid
+flowchart TD
+    A["costoAsignacion(cursos, aulas, d, a, w)"]
+    A --> B["val (wCH, wCF, wDE, wMV) = w\n→ extraer pesos"]
+    B --> C["choques(cursos, a)"]
+    B --> D["capacidadFallida(cursos, aulas, a)"]
+    B --> E["desperdicio(cursos, aulas, a)"]
+    B --> F["movilidad(cursos, aulas, d, a)"]
+    C --> G["wCH * CH"]
+    D --> H["wCF * CF"]
+    E --> I["wDE * DE"]
+    F --> J["wMV * MV"]
+    G & H & I & J --> K["suma total: costo ponderado"]
+```
+
+---
+
 ## 2.8. Funcion `generarAsignaciones` (version secuencial)
 
 ### Definicion
@@ -599,416 +966,6 @@ flowchart TD
     C --> D["minBy(_._2)\nseleccionar la de menor costo"]
     D --> E["retornar (asignacionOptima, costoMinimo)"]
 ```
----
-
-## 3.1. Funcion `choquesPar`
-
-### Definicion
-
-```scala
-def choquesPar(cursos: Cursos, a: Asignacion): Int = {
-  val n   = cursos.length
-  val mid = n / 2
-
-  def choquesRango(desde: Int, hasta: Int): Int =
-    (desde until hasta).toVector.flatMap { i =>
-      (i + 1 until n).toVector
-        .filter(j => a(i) >= 0 && a(j) >= 0 && a(i) == a(j))
-        .map(j => if (solapan(cursos(i), cursos(j))) 1 else 0)
-    }.sum
-
-  val (t1, t2) = parallel(choquesRango(0, mid), choquesRango(mid, n))
-  t1 + t2
-}
-```
-
-Esta funcion **no es recursiva directamente**. Divide el rango de
-indices en dos mitades y ejecuta `choquesRango` en paralelo sobre
-cada mitad, combinando los resultados con `+`.
-
-### Estructura del calculo
-
-La funcion auxiliar `choquesRango(desde, hasta)` recorre todos los
-indices $i \in [\text{desde}, \text{hasta})$ y para cada uno evalua
-todos los $j \in (i, n)$, aplicando tres condiciones:
-
-| Condicion | Descripcion |
-|---|---|
-| `a(i) >= 0 && a(j) >= 0` | Ambos cursos tienen aula asignada |
-| `a(i) == a(j)` | Comparten la misma aula |
-| `solapan(cursos(i), cursos(j))` | Sus intervalos se solapan |
-
-Si las tres condiciones se cumplen, el par contribuye con `1` al
-conteo. Al final se suman todos los valores con `.sum`.
-
-La division paralela es:
-
-$$
-\text{choquesPar} = \text{choquesRango}(0, \lfloor n/2 \rfloor) + \text{choquesRango}(\lfloor n/2 \rfloor, n)
-$$
-
-### Ejemplo no trivial: prueba "cuatro cursos en la misma aula generan 6 choques"
-
-**Datos de entrada:**
-
-```scala
-val cursos = Vector(
-  ("C1",0,10,20), ("C2",1,11,20),
-  ("C3",2,12,20), ("C4",3,13,20)
-)
-val asig = Vector(0, 0, 0, 0)
-// n=4, mid=2
-```
-
-Todos los cursos comparten aula 0 y todos se solapan entre si
-(todos inician dentro del intervalo del anterior). Los pares
-posibles con $i < j$ son: $(0,1),(0,2),(0,3),(1,2),(1,3),(2,3)$ — 6 pares.
-
-**Mitad izquierda: `choquesRango(0, 2)` — indices i=0, i=1**
-
-Para $i=0$: evalua $j \in \{1,2,3\}$
-
-| j | `a(i)>=0 && a(j)>=0` | `a(i)==a(j)` | `solapan` | contribuye |
-|---|---|---|---|---|
-| 1 | true | `0==0` true | `0<11 && 1<10` true | **1** |
-| 2 | true | `0==0` true | `0<12 && 2<10` true | **1** |
-| 3 | true | `0==0` true | `0<13 && 3<10` true | **1** |
-
-Para $i=1$: evalua $j \in \{2,3\}$
-
-| j | `a(i)>=0 && a(j)>=0` | `a(i)==a(j)` | `solapan` | contribuye |
-|---|---|---|---|---|
-| 2 | true | `0==0` true | `1<12 && 2<11` true | **1** |
-| 3 | true | `0==0` true | `1<13 && 3<11` true | **1** |
-
-$$
-t_1 = 3 + 2 = 5
-$$
-
-**Mitad derecha: `choquesRango(2, 4)` — indices i=2, i=3**
-
-Para $i=2$: evalua $j \in \{3\}$
-
-| j | `a(i)>=0 && a(j)>=0` | `a(i)==a(j)` | `solapan` | contribuye |
-|---|---|---|---|---|
-| 3 | true | `0==0` true | `2<13 && 3<12` true | **1** |
-
-Para $i=3$: evalua $j \in \{\}$ — rango vacio, suma 0.
-
-$$
-t_2 = 1
-$$
-
-**Combinacion:**
-
-$$
-\text{choquesPar} = t_1 + t_2 = 5 + 1 = 6
-$$
-
-La prueba verifica `choquesPar(cursos, asig) == 6`. ✓
-
-### Ejemplo adicional: prueba "mezcla de cursos asignados y sin asignar"
-
-```scala
-val cursos = Vector(("C1",0,6,20), ("C2",2,8,20), ("C3",4,10,20))
-val asig   = Vector(0, -1, 0)
-// n=3, mid=1
-```
-
-**`choquesRango(0, 1)`** — solo $i=0$: evalua $j \in \{1,2\}$
-
-| j | `a(0)>=0 && a(j)>=0` | resultado |
-|---|---|---|
-| 1 | `0>=0 && -1>=0` → false | descartado |
-| 2 | `0>=0 && 0>=0` → true, `0==0` true, `solapan([0,6),[4,10))` → `0<10 && 4<6` true | **1** |
-
-$t_1 = 1$
-
-**`choquesRango(1, 3)`** — $i=1$ e $i=2$
-
-Para $i=1$: $j \in \{2\}$: `a(1)=-1 >= 0` → false → descartado.
-Para $i=2$: $j \in \{\}$ — rango vacio.
-
-$t_2 = 0$
-
-**Resultado:** $1 + 0 = 1$. La prueba verifica `== 1`. ✓
-
-### Diagrama del proceso
-
-```mermaid
-flowchart TD
-    A["choquesPar(cursos, a)\nn=4, mid=2"]
-    A -->|"parallel izq"| T1["choquesRango(0, 2)\ni=0: j∈{1,2,3} → 3 choques\ni=1: j∈{2,3} → 2 choques\nt1 = 5"]
-    A -->|"parallel der"| T2["choquesRango(2, 4)\ni=2: j∈{3} → 1 choque\ni=3: j∈{} → 0\nt2 = 1"]
-    T1 & T2 --> R["t1 + t2 = 6"]
-```
-
----
-
-## 3.1. Funcion `desperdicioPar`
-
-### Definicion
-
-```scala
-def desperdicioPar(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = {
-  val n   = cursos.length
-  val mid = n / 2
-
-  def desperdicioRango(desde: Int, hasta: Int): Int =
-    (desde until hasta).toVector
-      .filter(i => a(i) >= 0 && capAula(aulas(a(i))) >= estCurso(cursos(i)))
-      .map(i => capAula(aulas(a(i))) - estCurso(cursos(i)))
-      .sum
-
-  val (t1, t2) = parallel(desperdicioRango(0, mid), desperdicioRango(mid, n))
-  t1 + t2
-}
-```
-
-Esta funcion **no es recursiva**. Divide el vector de cursos en dos
-mitades y calcula el desperdicio de cada mitad en paralelo.
-
-### Estructura del calculo
-
-La funcion auxiliar `desperdicioRango(desde, hasta)` opera en tres etapas:
-
-| Etapa | Operacion | Descripcion |
-|---|---|---|
-| 1 | `filter` | Retiene indices donde `a(i) >= 0` y `capAula >= estCurso` |
-| 2 | `map` | Calcula `capAula - estCurso` para cada indice retenido |
-| 3 | `sum` | Suma todos los desperdicios parciales |
-
-La division paralela es:
-
-$$
-\text{desperdicioPar} = \text{desperdicioRango}(0, \lfloor n/2 \rfloor) + \text{desperdicioRango}(\lfloor n/2 \rfloor, n)
-$$
-
-### Ejemplo no trivial: prueba "desperdicio repartido entre ambas mitades"
-
-**Datos de entrada:**
-
-```scala
-val cursos = Vector(
-  ("A",0,2,10), ("B",2,4,20),
-  ("C",4,6,15), ("D",6,8,25)
-)
-val aulas = Vector(("E1",30))
-val a     = Vector(0, 0, 0, 0)
-// n=4, mid=2, capAula(E1)=30
-```
-
-**Mitad izquierda: `desperdicioRango(0, 2)` — indices 0 y 1**
-
-| i | `a(i)>=0` | `cap>=est` | `cap-est` |
-|---|---|---|---|
-| 0 | true | `30>=10` true | `30-10=20` |
-| 1 | true | `30>=20` true | `30-20=10` |
-
-$t_1 = 20 + 10 = 30$
-
-**Mitad derecha: `desperdicioRango(2, 4)` — indices 2 y 3**
-
-| i | `a(i)>=0` | `cap>=est` | `cap-est` |
-|---|---|---|---|
-| 2 | true | `30>=15` true | `30-15=15` |
-| 3 | true | `30>=25` true | `30-25=5` |
-
-$t_2 = 15 + 5 = 20$
-
-**Combinacion:**
-
-$$
-\text{desperdicioPar} = t_1 + t_2 = 30 + 20 = 50
-$$
-
-La prueba verifica `== 50`. ✓
-
-### Ejemplo adicional: prueba "todos los cursos exceden la capacidad"
-
-```scala
-val cursos = Vector(("A",0,2,60), ("B",2,4,70), ("C",4,6,80))
-val aulas  = Vector(("E1",30), ("E2",40))
-val a      = Vector(0, 1, 0)
-// n=3, mid=1
-```
-
-**`desperdicioRango(0, 1)`:** $i=0$: `30>=60` false → descartado. $t_1=0$
-
-**`desperdicioRango(1, 3)`:** $i=1$: `40>=70` false → descartado. $i=2$: `30>=80` false → descartado. $t_2=0$
-
-**Resultado:** $0 + 0 = 0$. La prueba verifica `== 0`. ✓
-
-### Diagrama del proceso
-
-```mermaid
-flowchart TD
-    A["desperdicioPar(cursos, aulas, a)\nn=4, mid=2"]
-    A -->|"parallel izq"| T1["desperdicioRango(0, 2)\ni=0: 30-10=20\ni=1: 30-20=10\nt1 = 30"]
-    A -->|"parallel der"| T2["desperdicioRango(2, 4)\ni=2: 30-15=15\ni=3: 30-25=5\nt2 = 20"]
-    T1 & T2 --> R["t1 + t2 = 50"]
-```
-
----
-
-## 3.1. Funcion `movilidadPar`
-
-### Definicion
-
-```scala
-def movilidadPar(cursos: Cursos, aulas: Aulas, d: Distancias,
-                 a: Asignacion): Int = {
-  val ordenados = cursos.indices.toVector
-    .filter(i => a(i) >= 0)
-    .sortBy(i => iniCurso(cursos(i)))
-
-  if (ordenados.length < 2) 0
-  else {
-    val pares = ordenados.zip(ordenados.tail)
-    val ini   = 0
-    val fin   = pares.length
-    val mid   = ini + (fin - ini) / 2
-
-    val (t1, t2) = parallel(
-      pares.slice(ini, mid).map { case (i, j) => d(a(i))(a(j)) }.sum,
-      pares.slice(mid, fin).map { case (i, j) => d(a(i))(a(j)) }.sum
-    )
-    t1 + t2
-  }
-}
-```
-
-Esta funcion **no es recursiva**. Calcula la movilidad total como
-la suma de distancias entre aulas de cursos consecutivos (ordenados
-por inicio), ejecutando la suma en paralelo sobre dos mitades del
-vector de pares.
-
-### Estructura del calculo
-
-La funcion opera en cuatro etapas antes de la division paralela:
-
-| Etapa | Operacion | Descripcion |
-|---|---|---|
-| 1 | `filter` | Descarta indices con `a(i) < 0` (sin asignar) |
-| 2 | `sortBy` | Ordena los indices restantes por `iniCurso` |
-| 3 | `zip(tail)` | Forma pares consecutivos `(i, j)` |
-| 4 | `parallel` | Divide los pares en dos mitades y suma distancias |
-
-### Ejemplo no trivial: prueba "cuatro cursos alternando aulas generan movilidad 9"
-
-**Datos de entrada:**
-
-```scala
-val cursos = Vector(
-  ("C1",0,2,20), ("C2",2,4,20),
-  ("C3",4,6,20), ("C4",6,8,20)
-)
-val aulas = Vector(("E1",30), ("E2",30))
-val d     = Vector(Vector(0,3), Vector(3,0))
-val a     = Vector(0, 1, 0, 1)
-// d(0)(1)=3, d(1)(0)=3
-```
-
-**Etapa 1 — filter:** todos tienen `a(i) >= 0` → `ordenados = Vector(0,1,2,3)`
-
-**Etapa 2 — sortBy iniCurso:** ya ordenados por inicio (0,2,4,6) → sin cambio.
-
-**Etapa 3 — zip(tail):**
-
-```
-pares = Vector((0,1), (1,2), (2,3))
-// fin=3, mid=1
-```
-
-**Etapa 4 — parallel:**
-
-**Mitad izquierda:** `pares.slice(0,1)` = `Vector((0,1))`
-
-```
-(0,1) → d(a(0))(a(1)) = d(0)(1) = 3
-t1 = 3
-```
-
-**Mitad derecha:** `pares.slice(1,3)` = `Vector((1,2),(2,3))`
-
-```
-(1,2) → d(a(1))(a(2)) = d(1)(0) = 3
-(2,3) → d(a(2))(a(3)) = d(0)(1) = 3
-t2 = 3 + 3 = 6
-```
-
-**Combinacion:**
-
-$$
-\text{movilidadPar} = t_1 + t_2 = 3 + 6 = 9
-$$
-
-La prueba verifica `== 9`. ✓
-
-### Ejemplo adicional: prueba "cursos sin asignar no participan"
-
-```scala
-val cursos = Vector(("C1",0,2,20), ("C2",2,4,20), ("C3",4,6,20))
-val d      = Vector(Vector(0,5), Vector(5,0))
-val a      = Vector(0, -1, 1)
-```
-
-**Etapa 1 — filter:** descarta $i=1$ porque `a(1)=-1 < 0`.
-
-```
-ordenados = Vector(0, 2)
-```
-
-**Etapa 2 — sortBy:** `iniCurso(cursos(0))=0`, `iniCurso(cursos(2))=4` → sin cambio.
-
-**Etapa 3 — zip(tail):**
-
-```
-pares = Vector((0, 2))   // un solo par
-fin=1, mid=0
-```
-
-**Etapa 4 — parallel:**
-
-Mitad izquierda: `pares.slice(0,0)` = vacio → $t_1 = 0$
-
-Mitad derecha: `pares.slice(0,1)` = `Vector((0,2))`
-
-```
-(0,2) → d(a(0))(a(2)) = d(0)(1) = 5
-t2 = 5
-```
-
-**Resultado:** $0 + 5 = 5$. La prueba verifica `== 5`. ✓
-
-### Caso limite: prueba "todos en la misma aula generan movilidad 0"
-
-Cuando todos los cursos estan en el mismo aula, `d(k)(k) = 0` para
-todo $k$. Todos los pares producen distancia $0$ y la suma total es $0$.
-La prueba verifica `== 0`. ✓
-
-### Caso limite: `ordenados.length < 2`
-
-Si hay cero o un curso asignado, no existen pares consecutivos y
-la movilidad es $0$ por definicion. La funcion retorna `0` directamente
-sin llamar a `parallel`.
-
-### Diagrama del proceso
-
-```mermaid
-flowchart TD
-    A["movilidadPar(cursos, aulas, d, a)"]
-    A --> B["filter: descartar i con a(i) < 0"]
-    B --> C["sortBy iniCurso: ordenar por inicio"]
-    C --> D["zip(tail): formar pares consecutivos (i,j)"]
-    D --> E{"ordenados.length < 2?"}
-    E -->|"si"| Z["return 0"]
-    E -->|"no"| F["dividir pares en mitad: slice(0,mid) y slice(mid,fin)"]
-    F -->|"parallel izq"| T1["suma d(a(i))(a(j)) para pares izq\nt1"]
-    F -->|"parallel der"| T2["suma d(a(i))(a(j)) para pares der\nt2"]
-    T1 & T2 --> R["t1 + t2: movilidad total"]
-```
-
 
 ---
 
@@ -1151,93 +1108,5 @@ assert(generarAsignaciones(2,3).length == 9)
 assert(resultado.distinct.length == resultado.length)
 assert(resultado.forall(asig => asig.forall(aula => aula >= 0 && aula < m)))
 ```
-## 3.3. Funcion `asignacionOptimaPar` (version paralela)
 
----
-## Definición
-
-```scala
-def asignacionOptimaPar(cursos: Cursos, aulas: Aulas, d: Distancias,
-                        w: Pesos): (Asignacion, Int) = {
-  val todasLasAsignaciones = generarAsignaciones(cursos.length, aulas.length)
-  val mitad = todasLasAsignaciones.length / 2
-  val mitadIzq = todasLasAsignaciones.take(mitad)
-  val mitadDer = todasLasAsignaciones.drop(mitad)
-  val (minimoIzq, minimoDer) = parallel(
-    mitadIzq.map(asig => (asig, costoAsignacion(cursos, aulas, d, asig, w))).minBy(_._2),
-    mitadDer.map(asig => (asig, costoAsignacion(cursos, aulas, d, asig, w))).minBy(_._2)
-  )
-  if (minimoIzq._2 <= minimoDer._2) minimoIzq else minimoDer
-}
-```
-
-Esta función **no es recursiva**. Su proceso consiste en dividir el espacio de búsqueda en dos mitades y evaluar cada mitad en paralelo usando `parallel`.
-
-### Ejemplo
-
-Entrada:
-- `cursos = Vector(("M01",4,8,25), ("M02",6,10,30), ("M03",12,16,20))`
-- `aulas = Vector(("E101",30), ("E102",40))`
-- `d = Vector(Vector(0,3), Vector(3,0))`
-- `w = (1000, 100, 1, 2)`
-  Con 3 cursos y 2 aulas, `generarAsignaciones(3, 2)` produce $2^3 = 8$ asignaciones posibles.
-
-#### Paso 1: Generar todas las asignaciones
-
-```
-todasLasAsignaciones = Vector(
-  Vector(0,0,0), Vector(1,0,0), Vector(0,1,0), Vector(1,1,0),
-  Vector(0,0,1), Vector(1,0,1), Vector(0,1,1), Vector(1,1,1)
-)
-```
-
-#### Paso 2: Dividir en dos mitades
-
-```
-mitad    = 8 / 2 = 4
-mitadIzq = Vector(Vector(0,0,0), Vector(1,0,0), Vector(0,1,0), Vector(1,1,0))
-mitadDer = Vector(Vector(0,0,1), Vector(1,0,1), Vector(0,1,1), Vector(1,1,1))
-```
-
-#### Paso 3: Evaluar cada mitad en paralelo
-
-```
-Hilo izquierdo evalúa:
-  (Vector(0,0,0), costo) , (Vector(1,0,0), costo), ...
-  → minimoIzq = (Vector(0,1,0), 37)
- 
-Hilo derecho evalúa:
-  (Vector(0,0,1), costo), (Vector(1,0,1), costo), ...
-  → minimoDer = (Vector(0,1,1), costo)
-```
-
-#### Paso 4: Comparar y retornar el mínimo global
-
-```
-minimoIzq._2 = 37
-minimoDer._2 = algún costo >= 37
-→ retorna (Vector(0,1,0), 37)
-```
-
-### Diagrama del proceso
-
-```mermaid
-sequenceDiagram
-    participant Main as asignacionOptimaPar
-    participant Gen as generarAsignaciones
-    participant PIzq as Hilo izquierdo
-    participant PDer as Hilo derecho
- 
-    Main->>Gen: generarAsignaciones(n, m)
-    Gen-->>Main: todasLasAsignaciones (m^n elementos)
-    Main->>Main: dividir en mitadIzq y mitadDer
-    Main->>PIzq: map + minBy sobre mitadIzq
-    Main->>PDer: map + minBy sobre mitadDer
-    PIzq-->>Main: minimoIzq
-    PDer-->>Main: minimoDer
-    Main->>Main: comparar minimoIzq._2 vs minimoDer._2
-    Main-->>Main: retornar el menor
-```
- 
----
  
