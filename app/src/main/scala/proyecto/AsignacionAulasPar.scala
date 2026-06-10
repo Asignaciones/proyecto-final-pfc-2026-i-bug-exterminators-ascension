@@ -86,8 +86,6 @@ object AsignacionAulasPar {
 
   }
 
-
-
   /**
    * Versión paralela de asignacionOptima:
    * divide el espacio de candidatos en dos mitades y combina los mínimos.
