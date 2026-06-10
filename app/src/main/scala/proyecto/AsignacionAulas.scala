@@ -132,8 +132,6 @@ object AsignacionAulas {
 
   def movilidad(cursos: Cursos, aulas: Aulas, d: Distancias,
                 a: Asignacion): Int = {
-    // esta implementacion la hago mientras mis compañeros la hacen a su manera
-    // ya que es necesaria para asignacionOptima()
 
     // tomamos solo los cursos que tienen aula asignada
     val cursosAsignados = cursos.indices.filter(i => a(i) >= 0)
@@ -152,9 +150,6 @@ object AsignacionAulas {
   /** Costo total: w_CH * CH + w_CF * CF + w_DE * DE + w_MV * MV. */
   def costoAsignacion(cursos: Cursos, aulas: Aulas, d: Distancias,
                       a: Asignacion, w: Pesos): Int = {
-    // esta implementacion la hago mientras mis compañeros la hacen a su manera
-    // ya que es necesaria para asignacionOptima()
-
 
     val wCH = w._1
     val wCF = w._2
