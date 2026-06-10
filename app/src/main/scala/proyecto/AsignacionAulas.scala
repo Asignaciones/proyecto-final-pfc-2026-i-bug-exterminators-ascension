@@ -124,12 +124,30 @@ object AsignacionAulas {
    * Ordena los cursos asignados por hora de inicio y suma las distancias
    * entre aulas de cursos consecutivos.
    */
+
+
   def movilidad(cursos: Cursos, aulas: Aulas, d: Distancias,
                 a: Asignacion): Int = ???
 
   /** Costo total: w_CH * CH + w_CF * CF + w_DE * DE + w_MV * MV. */
   def costoAsignacion(cursos: Cursos, aulas: Aulas, d: Distancias,
-                      a: Asignacion, w: Pesos): Int = ???
+                      a: Asignacion, w: Pesos): Int = {
+    // esta implementacion la hago mientras mis compañeros la hacen a su manera
+    // ya que es necesaria para asignacionOptima()
+
+
+    val wCH = w._1
+    val wCF = w._2
+    val wDE = w._3
+    val wMV = w._4
+    // calculamos cada componente del costo
+    val ch = choques(cursos, a)
+    val cf = capacidadFallida(cursos, aulas, a)
+    val de = desperdicio(cursos, aulas, a)
+    val mv = movilidad(cursos, aulas, d, a)
+    // aplicamos la formula del enunciado
+    wCH * ch + wCF * cf + wDE * de + wMV * mv
+  }
 
   /**
    * Genera todas las asignaciones completas posibles: vectores en {0,..,m-1}^n.
