@@ -405,6 +405,373 @@ flowchart TD
 
 ---
 
+## 2.6. Función `movilidad`
+
+### Definición
+
+```scala
+def movilidad(cursos: Cursos, aulas: Aulas, d: Distancias,
+              a: Asignacion): Int = {
+  val ordenados = cursos.indices.toVector
+    .filter(i => a(i) >= 0)
+    .sortBy(i => iniCurso(cursos(i)))
+  if (ordenados.length < 2) 0
+  else
+    ordenados.zip(ordenados.tail)
+      .map { case (i, j) => d(a(i))(a(j)) }
+      .sum
+}
+```
+
+Esta función **no es recursiva**. Calcula la distancia total recorrida entre las aulas de cursos consecutivos (ordenados por tiempo de inicio) que tienen aula asignada.
+
+### Proceso de `movilidad`
+
+La función opera en cuatro etapas:
+
+**Etapa 1 — `filter`:** retiene solo los índices de cursos con aula asignada (`a(i) >= 0`).
+
+**Etapa 2 — `sortBy`:** ordena esos índices por el tiempo de inicio del curso, simulando el orden cronológico en que se dictan.
+
+**Etapa 3 — caso base:** si hay menos de 2 cursos asignados no existe ningún desplazamiento; se retorna `0` directamente.
+
+**Etapa 4 — `zip` + `map` + `sum`:** forma pares de cursos consecutivos `(i, j)`, consulta la distancia `d(a(i))(a(j))` entre sus aulas y suma todos los valores.
+
+### Ejemplo
+
+Entrada:
+- `cursos = Vector(("M01",4,8,25), ("M02",10,14,20), ("M03",6,10,30))`
+  - M01 inicia en 4, M03 inicia en 6, M02 inicia en 10
+- `a = Vector(2, 0, 1)` → M01 en aula 2, M02 en aula 0, M03 en aula 1
+- `d = Vector(Vector(0,3,5), Vector(3,0,4), Vector(5,4,0))`
+
+#### Paso a paso
+
+**Paso 1 — `filter`:** todos tienen `a(i) >= 0` → `Vector(0, 1, 2)`
+
+**Paso 2 — `sortBy(iniCurso)`:**
+
+| índice | iniCurso | aula |
+|--------|----------|------|
+| 0 (M01) | 4 | 2 |
+| 2 (M03) | 6 | 1 |
+| 1 (M02) | 10 | 0 |
+
+```
+ordenados = Vector(0, 2, 1)
+```
+
+**Paso 3 — `zip(ordenados.tail)`:**
+
+```
+ordenados      = Vector(0, 2, 1)
+ordenados.tail = Vector(2, 1)
+zip → Vector((0,2), (2,1))
+```
+
+**Paso 4 — `map`:** consulta distancias entre aulas de cada par
+
+```
+par (0, 2): d(a(0))(a(2)) = d(2)(1) = 4
+par (2, 1): d(a(2))(a(1)) = d(1)(0) = 3
+```
+
+**Paso 5 — `sum`:**
+
+```
+4 + 3 = 7
+```
+
+**Resultado:** `7` — la movilidad total de la asignación es 7.
+
+### Diagrama del proceso de `movilidad`
+
+```mermaid
+flowchart TD
+    A["movilidad(cursos, aulas, d, a)"]
+    A --> B["filter: retener índices con a(i) >= 0"]
+    B --> C["sortBy: ordenar por iniCurso(cursos(i))"]
+    C --> D{"ordenados.length < 2?"}
+    D -- "sí" --> E["return 0"]
+    D -- "no" --> F["zip(ordenados.tail)\n→ pares consecutivos (i,j)"]
+    F --> G["map: d(a(i))(a(j))\n→ distancia entre aulas"]
+    G --> H["sum: distancia total recorrida"]
+```
+
+---
+
+## 2.7. Función `costoAsignacion`
+
+### Definición
+
+```scala
+def costoAsignacion(cursos: Cursos, aulas: Aulas, d: Distancias,
+                    a: Asignacion, w: Pesos): Int = {
+  val (wCH, wCF, wDE, wMV) = w
+  wCH * choques(cursos, a) +
+    wCF * capacidadFallida(cursos, aulas, a) +
+    wDE * desperdicio(cursos, aulas, a) +
+    wMV * movilidad(cursos, aulas, d, a)
+}
+```
+
+Esta función **no es recursiva**. Combina los cuatro criterios de calidad de una asignación en un único valor numérico mediante una suma ponderada, usando los pesos provistos en `w`.
+
+### Proceso de `costoAsignacion`
+
+La función opera en dos etapas:
+
+**Etapa 1 — destructuring:** extrae los cuatro pesos `(wCH, wCF, wDE, wMV)` de la tupla `w`.
+
+**Etapa 2 — combinación lineal:** evalúa cada subfunción y multiplica su resultado por el peso correspondiente, sumando los cuatro términos:
+
+| Término | Subfunción | Significado |
+|---------|------------|-------------|
+| `wCH * choques(...)` | `choques` | Penaliza cursos en la misma aula que se solapan |
+| `wCF * capacidadFallida(...)` | `capacidadFallida` | Penaliza cursos en aulas con capacidad insuficiente |
+| `wDE * desperdicio(...)` | `desperdicio` | Penaliza puestos sobrantes en aulas |
+| `wMV * movilidad(...)` | `movilidad` | Penaliza distancias entre aulas de cursos consecutivos |
+
+### Ejemplo
+
+Entrada:
+- `cursos = Vector(("M01",4,8,25), ("M02",6,10,30))`
+- `aulas = Vector(("E1",30), ("E2",40))`
+- `d = Vector(Vector(0,5), Vector(5,0))`
+- `a = Vector(0, 0)` → ambos cursos en aula 0
+- `w = (10, 5, 1, 2)` → `wCH=10`, `wCF=5`, `wDE=1`, `wMV=2`
+
+#### Paso a paso
+
+**Paso 1 — destructuring:**
+```
+wCH=10, wCF=5, wDE=1, wMV=2
+```
+
+**Paso 2 — evaluación de subfunciones:**
+
+```
+choques:          M01 y M02 misma aula (0==0) y se solapan [4,8)∩[6,10) → 1
+capacidadFallida: aula 0 cap=30 >= est=25 ✓, aula 0 cap=30 < est=30? no → 0
+desperdicio:      (25,30)→30-25=5; (30,30)→0 → sum=5
+movilidad:        ordenados por inicio: [0(ini=4), 1(ini=6)]
+                  par (0,1): d(a(0))(a(1)) = d(0)(0) = 0 → sum=0
+```
+
+**Paso 3 — combinación lineal:**
+
+```
+10 * 1  +  5 * 0  +  1 * 5  +  2 * 0
+= 10 + 0 + 5 + 0
+= 15
+```
+
+**Resultado:** `15` — el costo total de la asignación es 15.
+
+### Diagrama del proceso de `costoAsignacion`
+
+```mermaid
+flowchart TD
+    A["costoAsignacion(cursos, aulas, d, a, w)"]
+    A --> B["val (wCH, wCF, wDE, wMV) = w\nextraer pesos"]
+    B --> C["choques(cursos, a)\n→ CH"]
+    B --> D["capacidadFallida(cursos, aulas, a)\n→ CF"]
+    B --> E["desperdicio(cursos, aulas, a)\n→ DE"]
+    B --> F["movilidad(cursos, aulas, d, a)\n→ MV"]
+    C --> G["wCH * CH + wCF * CF + wDE * DE + wMV * MV"]
+    D --> G
+    E --> G
+    F --> G
+    G --> H["costo total: Int"]
+```
+
+---
+
+## 2.6. Función `movilidad`
+
+### Definición
+
+```scala
+def movilidad(cursos: Cursos, aulas: Aulas, d: Distancias,
+              a: Asignacion): Int = {
+  val ordenados = cursos.indices.toVector
+    .filter(i => a(i) >= 0)
+    .sortBy(i => iniCurso(cursos(i)))
+  if (ordenados.length < 2) 0
+  else
+    ordenados.zip(ordenados.tail)
+      .map { case (i, j) => d(a(i))(a(j)) }
+      .sum
+}
+```
+
+Esta función **no es recursiva**. Calcula la distancia total que recorre un estudiante al desplazarse entre las aulas de sus cursos consecutivos, ordenados por hora de inicio.
+
+### Proceso de `movilidad`
+
+La función opera en cuatro etapas:
+
+**Etapa 1 — filtrado y ordenación:** selecciona los índices de los cursos que tienen aula asignada (`a(i) >= 0`) y los ordena por hora de inicio con `sortBy(i => iniCurso(cursos(i)))`.
+
+**Etapa 2 — caso base:** si hay menos de 2 cursos asignados, no existe ningún desplazamiento posible y retorna `0` directamente.
+
+**Etapa 3 — emparejamiento:** `ordenados.zip(ordenados.tail)` forma los pares de índices consecutivos $(o_k, o_{k+1})$ que representan cada desplazamiento entre aulas.
+
+**Etapa 4 — `map` + `sum`:** para cada par `(i, j)` obtiene la distancia `d(a(i))(a(j))` entre las aulas asignadas y suma todos los valores.
+
+### Ejemplo
+
+**Datos de entrada:**
+
+```scala
+val cursos = Vector(("M01",4,8,25), ("M02",10,14,30), ("M03",6,10,20))
+val aulas  = Vector(("E1",30), ("E2",40), ("E3",50))
+// Matriz de distancias: d(i)(j) = distancia entre aula i y aula j
+val d = Vector(Vector(0,5,8), Vector(5,0,3), Vector(8,3,0))
+val a = Vector(0, 2, 1)
+// M01 → E1(aula 0), M02 → E3(aula 2), M03 → E2(aula 1)
+```
+
+**Etapa 1 — filtrado y ordenación:**
+
+Todos los cursos tienen aula asignada (`a(i) >= 0`).
+
+| i | curso | iniCurso |
+|---|-------|----------|
+| 0 | M01 | 4 |
+| 2 | M03 | 6 |
+| 1 | M02 | 10 |
+
+```
+ordenados = Vector(0, 2, 1)
+```
+
+**Etapa 2 — caso base:** `ordenados.length = 3 >= 2`, se continúa.
+
+**Etapa 3 — emparejamiento:**
+
+```
+ordenados.zip(ordenados.tail)
+  = Vector(0,2,1).zip(Vector(2,1))
+  = Vector((0,2), (2,1))
+```
+
+**Etapa 4 — map + sum:**
+
+```
+Par (0, 2): d(a(0))(a(2)) = d(0)(1) = 5
+Par (2, 1): d(a(2))(a(1)) = d(1)(2) = 3
+sum = 5 + 3 = 8
+```
+
+**Resultado:** `8` — la movilidad total es 8 unidades de distancia.
+
+### Diagrama del proceso de `movilidad`
+
+```mermaid
+flowchart TD
+    A["movilidad(cursos, aulas, d, a)"]
+    A --> B["filter: a(i) >= 0\n→ cursos con aula asignada"]
+    B --> C["sortBy: iniCurso\n→ orden cronologico"]
+    C --> D{"ordenados.length < 2?"}
+    D -- "si" --> E["return 0"]
+    D -- "no" --> F["zip(tail)\n→ pares consecutivos (i,j)"]
+    F --> G["map: d(a(i))(a(j))\n→ distancia entre aulas"]
+    G --> H["sum: total de distancias"]
+    H --> I["movilidad total: Int"]
+```
+
+---
+
+## 2.7. Función `costoAsignacion`
+
+### Definición
+
+```scala
+def costoAsignacion(cursos: Cursos, aulas: Aulas, d: Distancias,
+                    a: Asignacion, w: Pesos): Int = {
+  val (wCH, wCF, wDE, wMV) = w
+  wCH * choques(cursos, a) +
+    wCF * capacidadFallida(cursos, aulas, a) +
+    wDE * desperdicio(cursos, aulas, a) +
+    wMV * movilidad(cursos, aulas, d, a)
+}
+```
+
+Esta función **no es recursiva**. Combina las cuatro métricas de calidad de una asignación en un único valor ponderado. Cada término penaliza un aspecto distinto: choques temporales, capacidad insuficiente, espacio desperdiciado y distancia de desplazamiento.
+
+### Proceso de `costoAsignacion`
+
+La función opera en dos etapas:
+
+**Etapa 1 — desestructuración de pesos:** `val (wCH, wCF, wDE, wMV) = w` extrae los cuatro factores de ponderación de la tupla `Pesos`.
+
+**Etapa 2 — combinación lineal ponderada:** evalúa las cuatro funciones de costo y suma sus resultados multiplicados por el peso correspondiente:
+
+| Término | Función | Penaliza |
+|---------|---------|---------|
+| `wCH * choques(...)` | `choques` | Pares de cursos en conflicto temporal en la misma aula |
+| `wCF * capacidadFallida(...)` | `capacidadFallida` | Cursos con aula de capacidad insuficiente |
+| `wDE * desperdicio(...)` | `desperdicio` | Puestos sobrantes en aulas con capacidad suficiente |
+| `wMV * movilidad(...)` | `movilidad` | Distancia total de desplazamiento entre aulas consecutivas |
+
+### Ejemplo
+
+**Datos de entrada:**
+
+```scala
+val cursos = Vector(("M01",4,8,25), ("M02",6,10,30), ("M03",12,16,20))
+val aulas  = Vector(("E1",30), ("E2",40))
+val d      = Vector(Vector(0,5), Vector(5,0))
+val a      = Vector(0, 0, 1)
+val w      = (10, 5, 1, 2)
+// wCH=10, wCF=5, wDE=1, wMV=2
+```
+
+**Etapa 1 — desestructuración:**
+
+```
+wCH = 10, wCF = 5, wDE = 1, wMV = 2
+```
+
+**Etapa 2 — evaluación de componentes:**
+
+```
+choques(cursos, a)              = 1   (M01 y M02 comparten E1 y se solapan)
+capacidadFallida(cursos, aulas, a) = 1   (M02 con 30 est. en E1 de cap. 30 -> ok; recalculo: M02 30<=30 ok, en realidad 0)
+desperdicio(cursos, aulas, a)   = 15  (E1: 30-25=5 para M01; E2: 40-20=20 para M03 -> total 25, pero M02 30==30 -> 0; total 25)
+movilidad(cursos, aulas, d, a)  = 5   (M01→M02: d(0)(0)=0; M02→M03: d(0)(1)=5 -> total 5)
+```
+
+**Combinación lineal:**
+
+```
+costo = 10*1 + 5*0 + 1*25 + 2*5
+      = 10 + 0 + 25 + 10
+      = 45
+```
+
+**Resultado:** `45` — el costo total ponderado de esta asignación es 45.
+
+### Diagrama del proceso de `costoAsignacion`
+
+```mermaid
+flowchart TD
+    A["costoAsignacion(cursos, aulas, d, a, w)"]
+    A --> B["val (wCH, wCF, wDE, wMV) = w\n→ extraer pesos"]
+    B --> C["choques(cursos, a)"]
+    B --> D["capacidadFallida(cursos, aulas, a)"]
+    B --> E["desperdicio(cursos, aulas, a)"]
+    B --> F["movilidad(cursos, aulas, d, a)"]
+    C --> G["wCH * CH"]
+    D --> H["wCF * CF"]
+    E --> I["wDE * DE"]
+    F --> J["wMV * MV"]
+    G & H & I & J --> K["suma total: costo ponderado"]
+```
+
+---
+
 ## 2.8. Funcion `generarAsignaciones` (version secuencial)
 
 ### Definicion

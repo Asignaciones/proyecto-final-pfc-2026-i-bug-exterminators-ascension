@@ -305,6 +305,157 @@ $$
 
 ---
 
+## 2.6. Función `movilidad`
+
+### Especificación
+
+Sea $f : \text{Cursos} \times \text{Aulas} \times \text{Distancias} \times \text{Asignacion} \to \mathbb{N}$ la función que calcula la distancia total que recorre un estudiante al desplazarse entre aulas consecutivas a lo largo de su jornada. Formalmente, dado el vector de índices de cursos asignados ordenados por hora de inicio:
+
+$$
+f(\text{cursos}, \text{aulas}, d, \alpha) = \sum_{k=0}^{|\text{ordenados}|-2} d\bigl(\alpha_{o_k}\bigr)\bigl(\alpha_{o_{k+1}}\bigr)
+$$
+
+donde $\text{ordenados} = [o_0, o_1, \ldots]$ es la secuencia de índices de cursos con aula asignada ($\alpha_i \geq 0$) ordenados ascendentemente por `iniCurso`, y $d(a)(b)$ es la distancia entre el aula $a$ y el aula $b$.
+
+### Implementación
+
+```scala
+def movilidad(cursos: Cursos, aulas: Aulas, d: Distancias,
+              a: Asignacion): Int = {
+  val ordenados = cursos.indices.toVector
+    .filter(i => a(i) >= 0)
+    .sortBy(i => iniCurso(cursos(i)))
+  if (ordenados.length < 2) 0
+  else
+    ordenados.zip(ordenados.tail)
+      .map { case (i, j) => d(a(i))(a(j)) }
+      .sum
+}
+```
+
+### Argumentación de corrección
+
+Esta función no es recursiva. Se argumenta su corrección mostrando que la cadena `filter` → `sortBy` → `zip` → `map` → `sum` implementa exactamente la sumatoria de distancias consecutivas de la especificación.
+
+Queremos demostrar que:
+
+$$
+\forall \text{cursos}, \text{aulas}, d, \alpha : P_f(\text{cursos}, \text{aulas}, d, \alpha) == f(\text{cursos}, \text{aulas}, d, \alpha)
+$$
+
+**Demostración:**
+
+**Paso 1 — construcción de `ordenados`:**
+
+La expresión `cursos.indices.toVector.filter(i => a(i) >= 0)` selecciona exactamente los índices de cursos que tienen aula asignada:
+
+$$
+\text{asignados} = \{i \mid 0 \leq i < n,\; \alpha_i \geq 0\}
+$$
+
+A continuación, `.sortBy(i => iniCurso(cursos(i)))` ordena estos índices de forma ascendente según la hora de inicio del curso, produciendo la secuencia $[o_0, o_1, \ldots, o_{p-1}]$ donde $p = |\text{asignados}|$.
+
+**Paso 2 — caso base ($p < 2$):**
+
+Si hay cero o un único curso asignado no existe ningún par consecutivo de aulas, por lo que la movilidad es $0$. La guarda `if (ordenados.length < 2) 0` implementa exactamente este caso.
+
+**Paso 3 — emparejamiento de pares consecutivos:**
+
+`ordenados.zip(ordenados.tail)` produce los pares $(o_0, o_1), (o_1, o_2), \ldots, (o_{p-2}, o_{p-1})$, que son exactamente los $p-1$ pares consecutivos de la especificación.
+
+**Paso 4 — cálculo de distancias:**
+
+El `.map { case (i, j) => d(a(i))(a(j)) }` sustituye cada par de índices de curso por la distancia entre sus aulas asignadas:
+
+$$
+d(\alpha_{o_k})(\alpha_{o_{k+1}}) \quad \text{para } k = 0, \ldots, p-2
+$$
+
+**Paso 5 — suma:**
+
+`.sum` acumula todas las distancias, obteniendo:
+
+$$
+P_f = \sum_{k=0}^{p-2} d(\alpha_{o_k})(\alpha_{o_{k+1}}) = f(\text{cursos}, \text{aulas}, d, \alpha)
+$$
+
+**Conclusión:**
+
+$$
+\forall \text{cursos}, \text{aulas}, d, \alpha : P_f(\text{cursos}, \text{aulas}, d, \alpha) == f(\text{cursos}, \text{aulas}, d, \alpha) \quad \checkmark
+$$
+
+---
+
+## 2.7. Función `costoAsignacion`
+
+### Especificación
+
+Sea $f : \text{Cursos} \times \text{Aulas} \times \text{Distancias} \times \text{Asignacion} \times \text{Pesos} \to \mathbb{N}$ la función que calcula el costo total ponderado de una asignación. Dados los pesos $w = (w_{CH}, w_{CF}, w_{DE}, w_{MV})$:
+
+$$
+f(C, A, d, \alpha, w) = w_{CH} \cdot \text{CH}(C, \alpha) + w_{CF} \cdot \text{CF}(C, A, \alpha) + w_{DE} \cdot \text{DE}(C, A, \alpha) + w_{MV} \cdot \text{MV}(C, A, d, \alpha)
+$$
+
+donde $\text{CH}$, $\text{CF}$, $\text{DE}$ y $\text{MV}$ son, respectivamente, las funciones `choques`, `capacidadFallida`, `desperdicio` y `movilidad`.
+
+### Implementación
+
+```scala
+def costoAsignacion(cursos: Cursos, aulas: Aulas, d: Distancias,
+                    a: Asignacion, w: Pesos): Int = {
+  val (wCH, wCF, wDE, wMV) = w
+  wCH * choques(cursos, a) +
+    wCF * capacidadFallida(cursos, aulas, a) +
+    wDE * desperdicio(cursos, aulas, a) +
+    wMV * movilidad(cursos, aulas, d, a)
+}
+```
+
+### Argumentación de corrección
+
+Esta función no es recursiva. Se argumenta su corrección mostrando que la expresión retornada implementa exactamente la combinación lineal ponderada de la especificación, apoyándose en la corrección ya demostrada de cada componente.
+
+Queremos demostrar que:
+
+$$
+\forall C, A, d, \alpha, w : P_f(C, A, d, \alpha, w) == f(C, A, d, \alpha, w)
+$$
+
+**Demostración:**
+
+La desestructuración `val (wCH, wCF, wDE, wMV) = w` extrae exactamente los cuatro pesos de la tupla $w$, por lo que:
+
+$$
+w_{CH} = \text{wCH}, \quad w_{CF} = \text{wCF}, \quad w_{DE} = \text{wDE}, \quad w_{MV} = \text{wMV}
+$$
+
+Por las correcciones ya demostradas:
+
+$$
+\text{choques}(C, \alpha) = \text{CH}(C, \alpha), \quad \text{capacidadFallida}(C, A, \alpha) = \text{CF}(C, A, \alpha)
+$$
+
+$$
+\text{desperdicio}(C, A, \alpha) = \text{DE}(C, A, \alpha), \quad \text{movilidad}(C, A, d, \alpha) = \text{MV}(C, A, d, \alpha)
+$$
+
+La expresión retornada es:
+
+$$
+P_f = w_{CH} \cdot \text{CH} + w_{CF} \cdot \text{CF} + w_{DE} \cdot \text{DE} + w_{MV} \cdot \text{MV}
+$$
+
+Que es exactamente $f(C, A, d, \alpha, w)$.
+
+**Conclusión:**
+
+$$
+\forall C, A, d, \alpha, w : P_f(C, A, d, \alpha, w) == f(C, A, d, \alpha, w) \quad \checkmark
+$$
+
+---
+
 ## 2.8. Funcion `generarAsignaciones` (version secuencial)
 
 ### Especificacion
