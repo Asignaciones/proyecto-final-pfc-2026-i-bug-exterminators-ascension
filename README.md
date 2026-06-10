@@ -8,16 +8,12 @@
 
 ---
 
-## Integrantes del grupo
+| Nombre Completo               | Código  | Rol         | Correo Electrónico                       |
+| ------------------------------|---------| ------------|------------------------------------------|
+| Yonier Alejandro Vega Rojas   | 2477056 | Colaborador | yonier.vega@correounivalle.edu           |
+| Andres Felipe Quiceno Gil     | 2477362 | Lider       | quiceno.andres@correounivalle.edu        |
+| Juan Esteban Martinez Orobio  | 2569452 | Colaborador | juan.martinez.orobio@correounivalle.edu  |
 
-| Nombre completo | Código | Correo institucional |
-|-----------------|--------|----------------------|
-| [Estudiante 1]  |        |                      |
-| [Estudiante 2]  |        |                      |
-| [Estudiante 3]  |        |                      |
-
-**Obligatorio:** editar esta tabla con los datos reales de todos los integrantes.
-Si un integrante no aparece aquí, su nota individual será 0.0.
 
 ---
 
