@@ -236,6 +236,7 @@ class AsignacionAulasTest extends AnyFunSuite {
       ("E2",40),
       ("E3",50)
     )
+    println(desperdicio(cursos,aulas,Vector(0,1,2)))
     assert(desperdicio(cursos,aulas,Vector(0,1,2)) == 60)
   }
 
