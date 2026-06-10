@@ -6,14 +6,57 @@ import AsignacionAulas._
 object AsignacionAulasPar {
 
   /** Versión paralela de choques: divide el vector de cursos en dos mitades. */
-  def choquesPar(cursos: Cursos, a: Asignacion): Int = ???
+  def choquesPar(cursos: Cursos, a: Asignacion): Int = {
+    val n   = cursos.length
+    val mid = n / 2
+
+    def choquesRango(desde: Int, hasta: Int): Int =
+      (desde until hasta).toVector.flatMap { i =>
+        (i + 1 until n).toVector
+          .filter(j => a(i) >= 0 && a(j) >= 0 && a(i) == a(j))
+          .map(j => if (solapan(cursos(i), cursos(j))) 1 else 0)
+      }.sum
+
+    val (t1, t2) = parallel(choquesRango(0, mid), choquesRango(mid, n))
+    t1 + t2
+  }
 
   /** Versión paralela de desperdicio: divide el vector de cursos en dos mitades. */
-  def desperdicioPar(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = ???
+  def desperdicioPar(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = {
+    val n   = cursos.length
+    val mid = n / 2
+
+    def desperdicioRango(desde: Int, hasta: Int): Int =
+      (desde until hasta).toVector
+        .filter(i => a(i) >= 0 && capAula(aulas(a(i))) >= estCurso(cursos(i)))
+        .map(i => capAula(aulas(a(i))) - estCurso(cursos(i)))
+        .sum
+
+    val (t1, t2) = parallel(desperdicioRango(0, mid), desperdicioRango(mid, n))
+    t1 + t2
+  }
 
   /** Versión paralela de movilidad: divide el vector de cursos en dos mitades. */
   def movilidadPar(cursos: Cursos, aulas: Aulas, d: Distancias,
-                   a: Asignacion): Int = ???
+                   a: Asignacion): Int = {
+    val ordenados = cursos.indices.toVector
+      .filter(i => a(i) >= 0)
+      .sortBy(i => iniCurso(cursos(i)))
+
+    if (ordenados.length < 2) 0
+    else {
+      val pares = ordenados.zip(ordenados.tail)
+      val ini   = 0
+      val fin   = pares.length
+      val mid   = ini + (fin - ini) / 2
+
+      val (t1, t2) = parallel(
+        pares.slice(ini, mid).map { case (i, j) => d(a(i))(a(j)) }.sum,
+        pares.slice(mid, fin).map { case (i, j) => d(a(i))(a(j)) }.sum
+      )
+      t1 + t2
+    }
+  }
 
   /**
    * Versión paralela de generarAsignaciones:
