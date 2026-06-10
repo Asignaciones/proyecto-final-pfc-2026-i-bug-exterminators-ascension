@@ -305,6 +305,160 @@ $$
 
 ---
 
+## 2.6 Función `movilidad`
+
+### Especificación
+
+Sea $f : \text{Cursos} \times \text{Aulas} \times \text{Distancias} \times \text{Asignacion} \to \mathbb{N}$ la función que calcula el costo de movilidad de una asignación. Formalmente, dados los cursos asignados ordenados por hora de inicio $c_{\sigma_0}, c_{\sigma_1}, \ldots, c_{\sigma_{k-1}}$:
+
+$$
+f(C, A, D, \alpha) = \sum_{j=0}^{k-2} D[\alpha_{\sigma_j}][\alpha_{\sigma_{j+1}}]
+$$
+
+donde $k$ es el número de cursos con aula asignada ($\alpha_i \geq 0$).
+
+### Implementación
+
+```scala
+def movilidad(cursos: Cursos, aulas: Aulas, d: Distancias, a: Asignacion): Int = {
+  val cursosAsignados = cursos.indices.filter(i => a(i) >= 0)
+  val ordenados = cursosAsignados.sortBy(i => iniCurso(cursos(i)))
+  if (ordenados.length < 2)
+    0
+  else {
+    val pares = ordenados.zip(ordenados.tail)
+    pares.map { case (i, j) => d(a(i))(a(j)) }.sum
+  }
+}
+```
+
+### Argumentación de corrección
+
+Esta función no es recursiva. Se argumenta su corrección mostrando que cada paso corresponde exactamente a la especificación.
+
+Queremos demostrar que:
+
+$$
+\forall C, A, D, \alpha : P_f(C, A, D, \alpha) == f(C, A, D, \alpha)
+$$
+
+**Demostración:**
+
+**Paso 1:** `cursosAsignados` filtra los índices $i$ tales que $\alpha_i \geq 0$, obteniendo exactamente el conjunto de cursos asignados que describe la especificación.
+
+**Paso 2:** `ordenados` aplica `sortBy(i => iniCurso(cursos(i)))`, lo que produce la secuencia $\sigma_0, \sigma_1, \ldots, \sigma_{k-1}$ ordenada por hora de inicio, tal como exige la especificación.
+
+**Paso 3:** Si $k < 2$ no hay pares consecutivos, por lo tanto la sumatoria es vacía:
+
+$$
+\sum_{j=0}^{k-2} D[\alpha_{\sigma_j}][\alpha_{\sigma_{j+1}}] = 0 \quad \text{cuando } k < 2
+$$
+
+Lo que coincide con el `return 0` de la implementación.
+
+**Paso 4:** `ordenados.zip(ordenados.tail)` construye exactamente los pares consecutivos $(\sigma_j, \sigma_{j+1})$ para $j = 0, \ldots, k-2$.
+
+**Paso 5:** El `.map { case (i, j) => d(a(i))(a(j)) }.sum` calcula:
+
+$$
+\sum_{j=0}^{k-2} D[\alpha_{\sigma_j}][\alpha_{\sigma_{j+1}}]
+$$
+
+Que es exactamente $f(C, A, D, \alpha)$.
+
+**Conclusión:**
+
+$$
+\forall C, A, D, \alpha : P_f(C, A, D, \alpha) == f(C, A, D, \alpha) \quad \checkmark
+$$
+ 
+---
+
+## 2.7 Función `costoAsignacion`
+
+### Especificación
+
+Sea $f : \text{Cursos} \times \text{Aulas} \times \text{Distancias} \times \text{Asignacion} \times \text{Pesos} \to \mathbb{N}$ la función que calcula el costo total de una asignación. Formalmente:
+
+$$
+f(C, A, D, \alpha, w) = w_{CH} \cdot \text{CH}^\alpha_C + w_{CF} \cdot \text{CF}^\alpha_{C,A} + w_{DE} \cdot \text{DE}^\alpha_{C,A} + w_{MV} \cdot \text{MV}^\alpha_{C,A,D}
+$$
+
+### Implementación
+
+```scala
+def costoAsignacion(cursos: Cursos, aulas: Aulas, d: Distancias,
+                    a: Asignacion, w: Pesos): Int = {
+  val wCH = w._1
+  val wCF = w._2
+  val wDE = w._3
+  val wMV = w._4
+  val ch = choques(cursos, a)
+  val cf = capacidadFallida(cursos, aulas, a)
+  val de = desperdicio(cursos, aulas, a)
+  val mv = movilidad(cursos, aulas, d, a)
+  wCH * ch + wCF * cf + wDE * de + wMV * mv
+}
+```
+
+### Argumentación de corrección
+
+Esta función no es recursiva. Se argumenta su corrección mostrando que la expresión retornada corresponde exactamente a la fórmula de la especificación, apoyándose en la corrección de las funciones que invoca.
+
+Queremos demostrar que:
+
+$$
+\forall C, A, D, \alpha, w : P_f(C, A, D, \alpha, w) == f(C, A, D, \alpha, w)
+$$
+
+**Demostración:**
+
+Los pesos se extraen directamente de la tupla $w$:
+
+$$
+w_{CH} = w.\text{\_1}, \quad w_{CF} = w.\text{\_2}, \quad w_{DE} = w.\text{\_3}, \quad w_{MV} = w.\text{\_4}
+$$
+
+Cada componente del costo se calcula llamando a su función correspondiente. Asumiendo la corrección de cada una:
+
+$$
+\text{ch} = \text{choques}(C, \alpha) = \text{CH}^\alpha_C
+$$
+
+$$
+\text{cf} = \text{capacidadFallida}(C, A, \alpha) = \text{CF}^\alpha_{C,A}
+$$
+
+$$
+\text{de} = \text{desperdicio}(C, A, \alpha) = \text{DE}^\alpha_{C,A}
+$$
+
+$$
+\text{mv} = \text{movilidad}(C, A, D, \alpha) = \text{MV}^\alpha_{C,A,D}
+$$
+
+La expresión retornada es:
+
+$$
+P_f(C, A, D, \alpha, w) \to w_{CH} \cdot \text{ch} + w_{CF} \cdot \text{cf} + w_{DE} \cdot \text{de} + w_{MV} \cdot \text{mv}
+$$
+
+Sustituyendo:
+
+$$
+\to w_{CH} \cdot \text{CH}^\alpha_C + w_{CF} \cdot \text{CF}^\alpha_{C,A} + w_{DE} \cdot \text{DE}^\alpha_{C,A} + w_{MV} \cdot \text{MV}^\alpha_{C,A,D}
+$$
+
+Que es exactamente $f(C, A, D, \alpha, w)$.
+
+**Conclusión:**
+
+$$
+\forall C, A, D, \alpha, w : P_f(C, A, D, \alpha, w) == f(C, A, D, \alpha, w) \quad \checkmark
+$$
+ 
+---
+
 ## 2.8. Funcion `generarAsignaciones` (version secuencial)
 
 ### Especificacion
