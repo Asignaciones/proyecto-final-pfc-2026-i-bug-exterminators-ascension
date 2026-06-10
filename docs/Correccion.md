@@ -763,3 +763,83 @@ $$
 $$
 \forall n, m \in \mathbb{N} : P_{f_\parallel}(n, m) == P_f(n, m) \quad \square
 $$
+
+## 3.3. Funcion `asignacionOptimaPar` (version paralela)
+
+### Especificación
+
+Sea $f : \text{Cursos} \times \text{Aulas} \times \text{Distancias} \times \text{Pesos} \to \text{Asignacion} \times \mathbb{N}$ la función que devuelve la asignación de mínimo costo total:
+
+$$
+f(C, A, D, w) = \arg\min_{\alpha \in \{0,\ldots,m-1\}^n} \text{CT}^\alpha_{C,A,D}
+$$
+
+### Implementacion
+
+```scala
+def generarAsignacionesPar(n: Int, m: Int): Vector[Asignacion] = {
+  if (n == 0)
+    Vector(Vector())
+  else {
+    val anteriorAsignacion = generarAsignacionesPar(n - 1, m)
+    def aux(vect: Vector[Int]): Vector[Asignacion] = {
+      if (vect.length == 1)
+        anteriorAsignacion.map(asigAnterior => vect(0) +: asigAnterior)
+      else {
+        val (vect1, vect2) = vect.splitAt(vect.length / 2)
+        val (a, b) = parallel(aux(vect1), aux(vect2))
+        a ++ b
+      }
+    }
+    aux((0 until m).toVector)
+  }
+}
+```
+
+### Argumentación de corrección
+
+Queremos demostrar que:
+
+$$
+\forall C, A, D, w : P_f(C, A, D, w) == f(C, A, D, w)
+$$
+
+**Demostración:**
+
+**Paso 1:** Por la corrección de `generarAsignaciones`, `todasLasAsignaciones` contiene exactamente todos los elementos de $\{0,\ldots,m-1\}^n$, es decir el espacio completo de búsqueda.
+
+**Paso 2:** La división en mitades es exhaustiva y sin pérdida:
+
+$$
+\text{mitadIzq} \cup \text{mitadDer} = \{0,\ldots,m-1\}^n
+\quad \land \quad
+\text{mitadIzq} \cap \text{mitadDer} = \emptyset
+$$
+
+Por lo tanto ninguna asignación se omite ni se duplica.
+
+**Paso 3:** `parallel` evalúa ambas mitades concurrentemente. Cada mitad calcula su mínimo local mediante `.map(...).minBy(_._2)`, que es equivalente a:
+
+$$
+\min_{\alpha \in \text{mitad}_i} \text{CT}^\alpha_{C,A,D}
+$$
+
+La concurrencia no afecta el resultado porque cada hilo opera sobre una partición independiente.
+
+**Paso 4:** La comparación final:
+
+$$
+\text{if } (\text{minimoIzq}._2 \leq \text{minimoDer}._2) \;\text{ minimoIzq } \text{ else } \text{ minimoDer}
+$$
+
+Selecciona el mínimo global entre los dos mínimos locales. Como las dos mitades cubren todo el espacio:
+
+$$
+\min(\min_{\alpha \in \text{mitadIzq}} \text{CT}^\alpha, \;\min_{\alpha \in \text{mitadDer}} \text{CT}^\alpha) = \min_{\alpha \in \{0,\ldots,m-1\}^n} \text{CT}^\alpha
+$$
+
+**Conclusión:**
+
+$$
+\forall C, A, D, w : P_f(C, A, D, w) == \arg\min_{\alpha \in \{0,\ldots,m-1\}^n} \text{CT}^\alpha_{C,A,D} \quad \checkmark
+$$

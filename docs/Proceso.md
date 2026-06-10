@@ -741,5 +741,93 @@ assert(generarAsignaciones(2,3).length == 9)
 assert(resultado.distinct.length == resultado.length)
 assert(resultado.forall(asig => asig.forall(aula => aula >= 0 && aula < m)))
 ```
+## 3.3. Funcion `asignacionOptimaPar` (version paralela)
 
+---
+## Definición
+
+```scala
+def asignacionOptimaPar(cursos: Cursos, aulas: Aulas, d: Distancias,
+                        w: Pesos): (Asignacion, Int) = {
+  val todasLasAsignaciones = generarAsignaciones(cursos.length, aulas.length)
+  val mitad = todasLasAsignaciones.length / 2
+  val mitadIzq = todasLasAsignaciones.take(mitad)
+  val mitadDer = todasLasAsignaciones.drop(mitad)
+  val (minimoIzq, minimoDer) = parallel(
+    mitadIzq.map(asig => (asig, costoAsignacion(cursos, aulas, d, asig, w))).minBy(_._2),
+    mitadDer.map(asig => (asig, costoAsignacion(cursos, aulas, d, asig, w))).minBy(_._2)
+  )
+  if (minimoIzq._2 <= minimoDer._2) minimoIzq else minimoDer
+}
+```
+
+Esta función **no es recursiva**. Su proceso consiste en dividir el espacio de búsqueda en dos mitades y evaluar cada mitad en paralelo usando `parallel`.
+
+### Ejemplo
+
+Entrada:
+- `cursos = Vector(("M01",4,8,25), ("M02",6,10,30), ("M03",12,16,20))`
+- `aulas = Vector(("E101",30), ("E102",40))`
+- `d = Vector(Vector(0,3), Vector(3,0))`
+- `w = (1000, 100, 1, 2)`
+  Con 3 cursos y 2 aulas, `generarAsignaciones(3, 2)` produce $2^3 = 8$ asignaciones posibles.
+
+#### Paso 1: Generar todas las asignaciones
+
+```
+todasLasAsignaciones = Vector(
+  Vector(0,0,0), Vector(1,0,0), Vector(0,1,0), Vector(1,1,0),
+  Vector(0,0,1), Vector(1,0,1), Vector(0,1,1), Vector(1,1,1)
+)
+```
+
+#### Paso 2: Dividir en dos mitades
+
+```
+mitad    = 8 / 2 = 4
+mitadIzq = Vector(Vector(0,0,0), Vector(1,0,0), Vector(0,1,0), Vector(1,1,0))
+mitadDer = Vector(Vector(0,0,1), Vector(1,0,1), Vector(0,1,1), Vector(1,1,1))
+```
+
+#### Paso 3: Evaluar cada mitad en paralelo
+
+```
+Hilo izquierdo evalúa:
+  (Vector(0,0,0), costo) , (Vector(1,0,0), costo), ...
+  → minimoIzq = (Vector(0,1,0), 37)
+ 
+Hilo derecho evalúa:
+  (Vector(0,0,1), costo), (Vector(1,0,1), costo), ...
+  → minimoDer = (Vector(0,1,1), costo)
+```
+
+#### Paso 4: Comparar y retornar el mínimo global
+
+```
+minimoIzq._2 = 37
+minimoDer._2 = algún costo >= 37
+→ retorna (Vector(0,1,0), 37)
+```
+
+### Diagrama del proceso
+
+```mermaid
+sequenceDiagram
+    participant Main as asignacionOptimaPar
+    participant Gen as generarAsignaciones
+    participant PIzq as Hilo izquierdo
+    participant PDer as Hilo derecho
+ 
+    Main->>Gen: generarAsignaciones(n, m)
+    Gen-->>Main: todasLasAsignaciones (m^n elementos)
+    Main->>Main: dividir en mitadIzq y mitadDer
+    Main->>PIzq: map + minBy sobre mitadIzq
+    Main->>PDer: map + minBy sobre mitadDer
+    PIzq-->>Main: minimoIzq
+    PDer-->>Main: minimoDer
+    Main->>Main: comparar minimoIzq._2 vs minimoDer._2
+    Main-->>Main: retornar el menor
+```
+ 
+---
  
