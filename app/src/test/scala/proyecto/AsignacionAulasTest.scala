@@ -277,7 +277,36 @@ class AsignacionAulasTest extends AnyFunSuite {
   }
 
   // movilidad
+  test("movilidad: asignacion [0,1,0] con cursos del ejemplo 1, distancia 6") {
+    assert(movilidad(c1, a1, d1, Vector(0, 1, 0)) == 6)
+  }
 
+  test("movilidad: asignacion [0,0,1] con cursos del ejemplo 1, distancia 3") {
+    assert(movilidad(c1, a1, d1, Vector(0, 0, 1)) == 3)
+  }
+
+  test("movilidad: un solo curso asignado, movilidad 0") {
+    val cursos = Vector(("C1", 0, 4, 10))
+    val aulas  = Vector(("E1", 20), ("E2", 20))
+    val dist   = Vector(Vector(0, 5), Vector(5, 0))
+    assert(movilidad(cursos, aulas, dist, Vector(0)) == 0)
+  }
+
+  test("movilidad: todos en la misma aula, distancia 0") {
+    val cursos = Vector(("C1", 0, 4, 10), ("C2", 5, 9, 10), ("C3", 10, 14, 10))
+    val aulas  = Vector(("E1", 20), ("E2", 20))
+    val dist   = Vector(Vector(0, 4), Vector(4, 0))
+    assert(movilidad(cursos, aulas, dist, Vector(0, 0, 0)) == 0)
+  }
+
+  test("movilidad: cursos desordenados se ordenan por inicio antes de sumar") {
+    // C2 empieza antes que C1, entonces el orden es C2 -> C1 -> C3
+    // dist(1->0) + dist(0->1) = 4 + 4 = 8
+    val cursos = Vector(("C1", 6, 10, 10), ("C2", 0, 4, 10), ("C3", 12, 16, 10))
+    val aulas  = Vector(("E1", 20), ("E2", 20))
+    val dist   = Vector(Vector(0, 4), Vector(4, 0))
+    assert(movilidad(cursos, aulas, dist, Vector(0, 1, 1)) == 8)
+  }
   // costoAsignacion
   test("costoAsignacion: asignacion [0,0,1] cuesta 1031") {
     assert(costoAsignacion(c1, a1, d1, Vector(0, 0, 1), w) == 1031)
@@ -375,5 +404,37 @@ class AsignacionAulasTest extends AnyFunSuite {
     assert(costo <= 37)
   }
 
+  test("asignacionOptima: la asignacion optima no tiene cursos sin asignar") {
+    val (asig, _) = asignacionOptima(c1, a1, d1, w)
+    assert(asig.forall(a => a >= 0))
+  }
 
+  test("asignacionOptima: el costo optimo es menor al de [0,0,1] (1031)") {
+    val (_, costo) = asignacionOptima(c1, a1, d1, w)
+    assert(costo < 1031)
+  }
+
+  test("asignacionOptima: ejemplo 2, el costo optimo no supera el de [0,1,0,1] (155)") {
+    val c2 = Vector(("F01", 0, 4, 40), ("F02", 4, 8, 25), ("F03", 8, 12, 50), ("F04", 12, 16, 15))
+    val a2 = Vector(("S201", 45), ("S202", 30))
+    val d2 = Vector(Vector(0, 5), Vector(5, 0))
+    val (_, costo) = asignacionOptima(c2, a2, d2, (1000, 100, 1, 2))
+    assert(costo <= 155)
+  }
+
+  test("asignacionOptima: con un solo curso, el costo optimo es el minimo entre las aulas disponibles") {
+    val cursos = Vector(("C1", 0, 4, 20))
+    val aulas  = Vector(("E1", 30), ("E2", 50))
+    val dist   = Vector(Vector(0, 3), Vector(3, 0))
+    val (_, costo) = asignacionOptima(cursos, aulas, dist, (1000, 100, 1, 2))
+    // la mejor es E1 con desperdicio 10, E2 tiene desperdicio 30
+    assert(costo == 10)
+  }
+
+  test("asignacionOptima: la optima del ejemplo 1 tiene costo menor o igual a cualquier otra asignacion") {
+    val (asigOptima, costoOptimo) = asignacionOptima(c1, a1, d1, w)
+    val todasLasAsignaciones = generarAsignaciones(c1.length, a1.length)
+    val todosLosCostos = todasLasAsignaciones.map(a => costoAsignacion(c1, a1, d1, a, w))
+    assert(todosLosCostos.forall(c => costoOptimo <= c))
+  }
 }
