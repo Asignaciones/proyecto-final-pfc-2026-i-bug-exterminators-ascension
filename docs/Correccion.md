@@ -305,158 +305,155 @@ $$
 
 ---
 
-## 2.6 Función `movilidad`
+## 2.6. Función `movilidad`
 
 ### Especificación
 
-Sea $f : \text{Cursos} \times \text{Aulas} \times \text{Distancias} \times \text{Asignacion} \to \mathbb{N}$ la función que calcula el costo de movilidad de una asignación. Formalmente, dados los cursos asignados ordenados por hora de inicio $c_{\sigma_0}, c_{\sigma_1}, \ldots, c_{\sigma_{k-1}}$:
+Sea $f : \text{Cursos} \times \text{Aulas} \times \text{Distancias} \times \text{Asignacion} \to \mathbb{N}$ la función que calcula la distancia total que recorre un estudiante al desplazarse entre aulas consecutivas a lo largo de su jornada. Formalmente, dado el vector de índices de cursos asignados ordenados por hora de inicio:
 
 $$
-f(C, A, D, \alpha) = \sum_{j=0}^{k-2} D[\alpha_{\sigma_j}][\alpha_{\sigma_{j+1}}]
+f(\text{cursos}, \text{aulas}, d, \alpha) = \sum_{k=0}^{|\text{ordenados}|-2} d\bigl(\alpha_{o_k}\bigr)\bigl(\alpha_{o_{k+1}}\bigr)
 $$
 
-donde $k$ es el número de cursos con aula asignada ($\alpha_i \geq 0$).
+donde $\text{ordenados} = [o_0, o_1, \ldots]$ es la secuencia de índices de cursos con aula asignada ($\alpha_i \geq 0$) ordenados ascendentemente por `iniCurso`, y $d(a)(b)$ es la distancia entre el aula $a$ y el aula $b$.
 
 ### Implementación
 
 ```scala
-def movilidad(cursos: Cursos, aulas: Aulas, d: Distancias, a: Asignacion): Int = {
-  val cursosAsignados = cursos.indices.filter(i => a(i) >= 0)
-  val ordenados = cursosAsignados.sortBy(i => iniCurso(cursos(i)))
-  if (ordenados.length < 2)
-    0
-  else {
-    val pares = ordenados.zip(ordenados.tail)
-    pares.map { case (i, j) => d(a(i))(a(j)) }.sum
-  }
+def movilidad(cursos: Cursos, aulas: Aulas, d: Distancias,
+              a: Asignacion): Int = {
+  val ordenados = cursos.indices.toVector
+    .filter(i => a(i) >= 0)
+    .sortBy(i => iniCurso(cursos(i)))
+  if (ordenados.length < 2) 0
+  else
+    ordenados.zip(ordenados.tail)
+      .map { case (i, j) => d(a(i))(a(j)) }
+      .sum
 }
 ```
 
 ### Argumentación de corrección
 
-Esta función no es recursiva. Se argumenta su corrección mostrando que cada paso corresponde exactamente a la especificación.
+Esta función no es recursiva. Se argumenta su corrección mostrando que la cadena `filter` → `sortBy` → `zip` → `map` → `sum` implementa exactamente la sumatoria de distancias consecutivas de la especificación.
 
 Queremos demostrar que:
 
 $$
-\forall C, A, D, \alpha : P_f(C, A, D, \alpha) == f(C, A, D, \alpha)
+\forall \text{cursos}, \text{aulas}, d, \alpha : P_f(\text{cursos}, \text{aulas}, d, \alpha) == f(\text{cursos}, \text{aulas}, d, \alpha)
 $$
 
 **Demostración:**
 
-**Paso 1:** `cursosAsignados` filtra los índices $i$ tales que $\alpha_i \geq 0$, obteniendo exactamente el conjunto de cursos asignados que describe la especificación.
+**Paso 1 — construcción de `ordenados`:**
 
-**Paso 2:** `ordenados` aplica `sortBy(i => iniCurso(cursos(i)))`, lo que produce la secuencia $\sigma_0, \sigma_1, \ldots, \sigma_{k-1}$ ordenada por hora de inicio, tal como exige la especificación.
-
-**Paso 3:** Si $k < 2$ no hay pares consecutivos, por lo tanto la sumatoria es vacía:
+La expresión `cursos.indices.toVector.filter(i => a(i) >= 0)` selecciona exactamente los índices de cursos que tienen aula asignada:
 
 $$
-\sum_{j=0}^{k-2} D[\alpha_{\sigma_j}][\alpha_{\sigma_{j+1}}] = 0 \quad \text{cuando } k < 2
+\text{asignados} = \{i \mid 0 \leq i < n,\; \alpha_i \geq 0\}
 $$
 
-Lo que coincide con el `return 0` de la implementación.
+A continuación, `.sortBy(i => iniCurso(cursos(i)))` ordena estos índices de forma ascendente según la hora de inicio del curso, produciendo la secuencia $[o_0, o_1, \ldots, o_{p-1}]$ donde $p = |\text{asignados}|$.
 
-**Paso 4:** `ordenados.zip(ordenados.tail)` construye exactamente los pares consecutivos $(\sigma_j, \sigma_{j+1})$ para $j = 0, \ldots, k-2$.
+**Paso 2 — caso base ($p < 2$):**
 
-**Paso 5:** El `.map { case (i, j) => d(a(i))(a(j)) }.sum` calcula:
+Si hay cero o un único curso asignado no existe ningún par consecutivo de aulas, por lo que la movilidad es $0$. La guarda `if (ordenados.length < 2) 0` implementa exactamente este caso.
+
+**Paso 3 — emparejamiento de pares consecutivos:**
+
+`ordenados.zip(ordenados.tail)` produce los pares $(o_0, o_1), (o_1, o_2), \ldots, (o_{p-2}, o_{p-1})$, que son exactamente los $p-1$ pares consecutivos de la especificación.
+
+**Paso 4 — cálculo de distancias:**
+
+El `.map { case (i, j) => d(a(i))(a(j)) }` sustituye cada par de índices de curso por la distancia entre sus aulas asignadas:
 
 $$
-\sum_{j=0}^{k-2} D[\alpha_{\sigma_j}][\alpha_{\sigma_{j+1}}]
+d(\alpha_{o_k})(\alpha_{o_{k+1}}) \quad \text{para } k = 0, \ldots, p-2
 $$
 
-Que es exactamente $f(C, A, D, \alpha)$.
+**Paso 5 — suma:**
+
+`.sum` acumula todas las distancias, obteniendo:
+
+$$
+P_f = \sum_{k=0}^{p-2} d(\alpha_{o_k})(\alpha_{o_{k+1}}) = f(\text{cursos}, \text{aulas}, d, \alpha)
+$$
 
 **Conclusión:**
 
 $$
-\forall C, A, D, \alpha : P_f(C, A, D, \alpha) == f(C, A, D, \alpha) \quad \checkmark
+\forall \text{cursos}, \text{aulas}, d, \alpha : P_f(\text{cursos}, \text{aulas}, d, \alpha) == f(\text{cursos}, \text{aulas}, d, \alpha) \quad \checkmark
 $$
- 
+
 ---
 
-## 2.7 Función `costoAsignacion`
+## 2.7. Función `costoAsignacion`
 
 ### Especificación
 
-Sea $f : \text{Cursos} \times \text{Aulas} \times \text{Distancias} \times \text{Asignacion} \times \text{Pesos} \to \mathbb{N}$ la función que calcula el costo total de una asignación. Formalmente:
+Sea $f : \text{Cursos} \times \text{Aulas} \times \text{Distancias} \times \text{Asignacion} \times \text{Pesos} \to \mathbb{N}$ la función que calcula el costo total ponderado de una asignación. Dados los pesos $w = (w_{CH}, w_{CF}, w_{DE}, w_{MV})$:
 
 $$
-f(C, A, D, \alpha, w) = w_{CH} \cdot \text{CH}^\alpha_C + w_{CF} \cdot \text{CF}^\alpha_{C,A} + w_{DE} \cdot \text{DE}^\alpha_{C,A} + w_{MV} \cdot \text{MV}^\alpha_{C,A,D}
+f(C, A, d, \alpha, w) = w_{CH} \cdot \text{CH}(C, \alpha) + w_{CF} \cdot \text{CF}(C, A, \alpha) + w_{DE} \cdot \text{DE}(C, A, \alpha) + w_{MV} \cdot \text{MV}(C, A, d, \alpha)
 $$
+
+donde $\text{CH}$, $\text{CF}$, $\text{DE}$ y $\text{MV}$ son, respectivamente, las funciones `choques`, `capacidadFallida`, `desperdicio` y `movilidad`.
 
 ### Implementación
 
 ```scala
 def costoAsignacion(cursos: Cursos, aulas: Aulas, d: Distancias,
                     a: Asignacion, w: Pesos): Int = {
-  val wCH = w._1
-  val wCF = w._2
-  val wDE = w._3
-  val wMV = w._4
-  val ch = choques(cursos, a)
-  val cf = capacidadFallida(cursos, aulas, a)
-  val de = desperdicio(cursos, aulas, a)
-  val mv = movilidad(cursos, aulas, d, a)
-  wCH * ch + wCF * cf + wDE * de + wMV * mv
+  val (wCH, wCF, wDE, wMV) = w
+  wCH * choques(cursos, a) +
+    wCF * capacidadFallida(cursos, aulas, a) +
+    wDE * desperdicio(cursos, aulas, a) +
+    wMV * movilidad(cursos, aulas, d, a)
 }
 ```
 
 ### Argumentación de corrección
 
-Esta función no es recursiva. Se argumenta su corrección mostrando que la expresión retornada corresponde exactamente a la fórmula de la especificación, apoyándose en la corrección de las funciones que invoca.
+Esta función no es recursiva. Se argumenta su corrección mostrando que la expresión retornada implementa exactamente la combinación lineal ponderada de la especificación, apoyándose en la corrección ya demostrada de cada componente.
 
 Queremos demostrar que:
 
 $$
-\forall C, A, D, \alpha, w : P_f(C, A, D, \alpha, w) == f(C, A, D, \alpha, w)
+\forall C, A, d, \alpha, w : P_f(C, A, d, \alpha, w) == f(C, A, d, \alpha, w)
 $$
 
 **Demostración:**
 
-Los pesos se extraen directamente de la tupla $w$:
+La desestructuración `val (wCH, wCF, wDE, wMV) = w` extrae exactamente los cuatro pesos de la tupla $w$, por lo que:
 
 $$
-w_{CH} = w.\text{\_1}, \quad w_{CF} = w.\text{\_2}, \quad w_{DE} = w.\text{\_3}, \quad w_{MV} = w.\text{\_4}
+w_{CH} = \text{wCH}, \quad w_{CF} = \text{wCF}, \quad w_{DE} = \text{wDE}, \quad w_{MV} = \text{wMV}
 $$
 
-Cada componente del costo se calcula llamando a su función correspondiente. Asumiendo la corrección de cada una:
+Por las correcciones ya demostradas:
 
 $$
-\text{ch} = \text{choques}(C, \alpha) = \text{CH}^\alpha_C
-$$
-
-$$
-\text{cf} = \text{capacidadFallida}(C, A, \alpha) = \text{CF}^\alpha_{C,A}
+\text{choques}(C, \alpha) = \text{CH}(C, \alpha), \quad \text{capacidadFallida}(C, A, \alpha) = \text{CF}(C, A, \alpha)
 $$
 
 $$
-\text{de} = \text{desperdicio}(C, A, \alpha) = \text{DE}^\alpha_{C,A}
-$$
-
-$$
-\text{mv} = \text{movilidad}(C, A, D, \alpha) = \text{MV}^\alpha_{C,A,D}
+\text{desperdicio}(C, A, \alpha) = \text{DE}(C, A, \alpha), \quad \text{movilidad}(C, A, d, \alpha) = \text{MV}(C, A, d, \alpha)
 $$
 
 La expresión retornada es:
 
 $$
-P_f(C, A, D, \alpha, w) \to w_{CH} \cdot \text{ch} + w_{CF} \cdot \text{cf} + w_{DE} \cdot \text{de} + w_{MV} \cdot \text{mv}
+P_f = w_{CH} \cdot \text{CH} + w_{CF} \cdot \text{CF} + w_{DE} \cdot \text{DE} + w_{MV} \cdot \text{MV}
 $$
 
-Sustituyendo:
-
-$$
-\to w_{CH} \cdot \text{CH}^\alpha_C + w_{CF} \cdot \text{CF}^\alpha_{C,A} + w_{DE} \cdot \text{DE}^\alpha_{C,A} + w_{MV} \cdot \text{MV}^\alpha_{C,A,D}
-$$
-
-Que es exactamente $f(C, A, D, \alpha, w)$.
+Que es exactamente $f(C, A, d, \alpha, w)$.
 
 **Conclusión:**
 
 $$
-\forall C, A, D, \alpha, w : P_f(C, A, D, \alpha, w) == f(C, A, D, \alpha, w) \quad \checkmark
+\forall C, A, d, \alpha, w : P_f(C, A, d, \alpha, w) == f(C, A, d, \alpha, w) \quad \checkmark
 $$
- 
+
 ---
 
 ## 2.8. Funcion `generarAsignaciones` (version secuencial)
@@ -612,309 +609,6 @@ $$
 
 ---
 
-## 3.1. Funcion `choquesPar`
-
-### Especificacion
-
-Sea $f : \text{Cursos} \times \text{Asignacion} \to \mathbb{N}$ la funcion
-que cuenta el numero de pares $(i, j)$ con $i < j$ tales que ambos
-cursos tienen aula asignada, comparten aula y se solapan en tiempo:
-
-$$
-f(\text{cursos}, \alpha) = \left|\{(i,j) \mid 0 \leq i < j < n,\; \alpha_i \geq 0,\; \alpha_j \geq 0,\; \alpha_i = \alpha_j,\; \text{solapan}(c_i, c_j)\}\right|
-$$
-
-### Implementacion
-
-```scala
-def choquesPar(cursos: Cursos, a: Asignacion): Int = {
-  val n   = cursos.length
-  val mid = n / 2
-
-  def choquesRango(desde: Int, hasta: Int): Int =
-    (desde until hasta).toVector.flatMap { i =>
-      (i + 1 until n).toVector
-        .filter(j => a(i) >= 0 && a(j) >= 0 && a(i) == a(j))
-        .map(j => if (solapan(cursos(i), cursos(j))) 1 else 0)
-    }.sum
-
-  val (t1, t2) = parallel(choquesRango(0, mid), choquesRango(mid, n))
-  t1 + t2
-}
-```
-
-### Argumentacion de correccion
-
-Se demuestra en dos partes: primero la correccion de `choquesRango`
-y luego la correccion de la division paralela.
-
-Queremos demostrar:
-
-$$
-\forall \text{cursos} \in \text{Cursos},\; \alpha \in \text{Asignacion} : P_f(\text{cursos}, \alpha) == f(\text{cursos}, \alpha)
-$$
-
-#### Parte 1: Correccion de `choquesRango`
-
-Sea $g(\text{desde}, \text{hasta})$ la funcion que cuenta los pares
-$(i, j)$ con $i \in [\text{desde}, \text{hasta})$ y $j \in (i, n)$
-que cumplen las tres condiciones de la especificacion:
-
-$$
-g(d, h) = \left|\{(i,j) \mid d \leq i < h,\; i < j < n,\; \alpha_i \geq 0,\; \alpha_j \geq 0,\; \alpha_i = \alpha_j,\; \text{solapan}(c_i, c_j)\}\right|
-$$
-
-La implementacion recorre $i \in [d, h)$ con `flatMap` y para cada
-$i$ evalua todos los $j \in (i, n)$ con `filter` y `map`:
-
-- `filter` retiene los $j$ donde $\alpha_i \geq 0 \land \alpha_j \geq 0 \land \alpha_i = \alpha_j$,
-  implementando exactamente las tres condiciones de la especificacion.
-- `map` produce $1$ si `solapan` y $0$ en caso contrario, y la
-  correccion de `solapan` fue demostrada previamente.
-- `.sum` acumula el conteo total.
-
-Por tanto $\text{choquesRango}(d, h) = g(d, h)$. ✓
-
-#### Parte 2: Correccion de la division paralela
-
-Sea $m = \lfloor n/2 \rfloor$. La division $[0, m)$ y $[m, n)$ es
-una **particion disjunta y completa** de $[0, n)$:
-
-$$
-[0, n) = [0, m) \cup [m, n) \quad \land \quad [0, m) \cap [m, n) = \emptyset
-$$
-
-Todo par $(i, j)$ con $i < j$ tiene su indice $i$ en exactamente
-una de las dos mitades. Por tanto los conjuntos de pares contados
-por $g(0, m)$ y $g(m, n)$ son disjuntos y su union es el conjunto
-completo de pares de la especificacion:
-
-$$
-f(\text{cursos}, \alpha) = g(0, m) + g(m, n)
-$$
-
-Como `parallel` ejecuta `choquesRango(0, mid)` y `choquesRango(mid, n)`
-concurrentemente sin compartir estado mutable:
-
-$$
-P_f(\text{cursos}, \alpha) = t_1 + t_2 = g(0, m) + g(m, n) = f(\text{cursos}, \alpha)
-$$
-
-**Conclusion:**
-
-$$
-\forall \text{cursos},\; \alpha : P_f(\text{cursos}, \alpha) == f(\text{cursos}, \alpha) \quad \checkmark
-$$
-
----
-
-## 3.1. Funcion `desperdicioPar`
-
-### Especificacion
-
-Sea $g : \text{Cursos} \times \text{Aulas} \times \text{Asignacion} \to \mathbb{N}$
-la funcion que suma los puestos sobrantes de las aulas con capacidad
-suficiente para sus cursos asignados:
-
-$$
-g(\text{cursos}, \text{aulas}, \alpha) = \sum_{\substack{i=0 \\ \alpha_i \geq 0 \\ \text{cap}(\alpha_i) \geq \text{est}(i)}}^{n-1} \left(\text{cap}(\alpha_i) - \text{est}(i)\right)
-$$
-
-donde $\text{cap}(\alpha_i) = \text{capAula}(\text{aulas}(\alpha_i))$
-y $\text{est}(i) = \text{estCurso}(\text{cursos}(i))$.
-
-### Implementacion
-
-```scala
-def desperdicioPar(cursos: Cursos, aulas: Aulas, a: Asignacion): Int = {
-  val n   = cursos.length
-  val mid = n / 2
-
-  def desperdicioRango(desde: Int, hasta: Int): Int =
-    (desde until hasta).toVector
-      .filter(i => a(i) >= 0 && capAula(aulas(a(i))) >= estCurso(cursos(i)))
-      .map(i => capAula(aulas(a(i))) - estCurso(cursos(i)))
-      .sum
-
-  val (t1, t2) = parallel(desperdicioRango(0, mid), desperdicioRango(mid, n))
-  t1 + t2
-}
-```
-
-### Argumentacion de correccion
-
-Queremos demostrar:
-
-$$
-\forall \text{cursos},\; \text{aulas},\; \alpha : P_g(\text{cursos}, \text{aulas}, \alpha) == g(\text{cursos}, \text{aulas}, \alpha)
-$$
-
-#### Parte 1: Correccion de `desperdicioRango`
-
-Sea $h(d, h')$ la sumatoria parcial de $g$ restringida al rango
-$[d, h')$:
-
-$$
-h(d, h') = \sum_{\substack{i=d \\ \alpha_i \geq 0 \\ \text{cap}(\alpha_i) \geq \text{est}(i)}}^{h'-1} \left(\text{cap}(\alpha_i) - \text{est}(i)\right)
-$$
-
-La implementacion aplica `filter` con el predicado
-$\alpha_i \geq 0 \land \text{cap}(\alpha_i) \geq \text{est}(i)$,
-que corresponde exactamente a la condicion de la sumatoria.
-Luego `map` calcula $\text{cap}(\alpha_i) - \text{est}(i) \geq 0$
-para cada indice retenido, y `.sum` acumula el resultado.
-
-Por tanto $\text{desperdicioRango}(d, h') = h(d, h')$. ✓
-
-#### Parte 2: Correccion de la division paralela
-
-La sumatoria de $g$ es **aditivamente separable** sobre particiones
-disjuntas del rango de indices. Con $m = \lfloor n/2 \rfloor$:
-
-$$
-g(\text{cursos}, \text{aulas}, \alpha) = h(0, m) + h(m, n)
-$$
-
-Cada termino de la suma depende unicamente de su propio rango de
-indices. Las dos llamadas a `desperdicioRango` en `parallel` no
-comparten estado mutable, por lo que la ejecucion concurrente
-produce los mismos valores que la secuencial:
-
-$$
-P_g = t_1 + t_2 = h(0, m) + h(m, n) = g(\text{cursos}, \text{aulas}, \alpha)
-$$
-
-**Caso limite:** si todos los cursos exceden la capacidad, `filter`
-descarta todos los indices en ambas mitades y $t_1 = t_2 = 0$,
-correcto por definicion de sumatoria sobre conjunto vacio. La prueba
-**"todos los cursos exceden la capacidad"** verifica `== 0`. ✓
-
-**Conclusion:**
-
-$$
-\forall \text{cursos},\; \text{aulas},\; \alpha : P_g(\text{cursos}, \text{aulas}, \alpha) == g(\text{cursos}, \text{aulas}, \alpha) \quad \checkmark
-$$
-
----
-
-## 3.1. Funcion `movilidadPar`
-
-### Especificacion
-
-Sea $f : \text{Cursos} \times \text{Aulas} \times \text{Distancias} \times \text{Asignacion} \to \mathbb{N}$
-la funcion que suma las distancias entre aulas de cursos consecutivos
-en el tiempo, considerando solo los cursos con aula asignada:
-
-$$
-f(\text{cursos}, \text{aulas}, d, \alpha) = \sum_{k=0}^{|ord|-2} d(\alpha_{ord_k})(\alpha_{ord_{k+1}})
-$$
-
-donde $ord = \text{sort}_{\text{ini}}(\{i \mid \alpha_i \geq 0\})$
-es la secuencia de indices de cursos asignados ordenados por hora
-de inicio, y $d(p)(q)$ es la distancia entre el aula $p$ y el aula $q$.
-
-### Implementacion
-
-```scala
-def movilidadPar(cursos: Cursos, aulas: Aulas, d: Distancias,
-                 a: Asignacion): Int = {
-  val ordenados = cursos.indices.toVector
-    .filter(i => a(i) >= 0)
-    .sortBy(i => iniCurso(cursos(i)))
-
-  if (ordenados.length < 2) 0
-  else {
-    val pares = ordenados.zip(ordenados.tail)
-    val ini   = 0
-    val fin   = pares.length
-    val mid   = ini + (fin - ini) / 2
-
-    val (t1, t2) = parallel(
-      pares.slice(ini, mid).map { case (i, j) => d(a(i))(a(j)) }.sum,
-      pares.slice(mid, fin).map { case (i, j) => d(a(i))(a(j)) }.sum
-    )
-    t1 + t2
-  }
-}
-```
-
-### Argumentacion de correccion
-
-Se demuestra en tres partes: correccion del preprocesamiento,
-correccion de la formacion de pares y correccion de la division
-paralela.
-
-Queremos demostrar:
-
-$$
-\forall \text{cursos},\; \text{aulas},\; d,\; \alpha : P_f(\text{cursos}, \text{aulas}, d, \alpha) == f(\text{cursos}, \text{aulas}, d, \alpha)
-$$
-
-#### Parte 1: Correccion del preprocesamiento
-
-**filter:** `filter(i => a(i) >= 0)` retiene exactamente los indices
-$i$ con $\alpha_i \geq 0$, es decir, los cursos con aula asignada.
-El conjunto resultante es $\{i \mid \alpha_i \geq 0\}$. ✓
-
-**sortBy:** `sortBy(i => iniCurso(cursos(i)))` ordena los indices
-retenidos por hora de inicio en orden ascendente, produciendo la
-secuencia $ord$ de la especificacion. ✓
-
-Por tanto $\text{ordenados} = ord$.
-
-#### Parte 2: Correccion de la formacion de pares
-
-`ordenados.zip(ordenados.tail)` produce el vector de pares
-consecutivos:
-
-$$
-\text{pares} = [(ord_0, ord_1),\; (ord_1, ord_2),\; \ldots,\; (ord_{|ord|-2}, ord_{|ord|-1})]
-$$
-
-con $|\text{pares}| = |ord| - 1$. Cada par $(ord_k, ord_{k+1})$
-representa dos cursos consecutivos en tiempo. ✓
-
-**Caso limite** $|ord| < 2$: no existen pares consecutivos, la
-movilidad es $0$ por definicion de sumatoria sobre conjunto vacio.
-La funcion retorna $0$ directamente. ✓
-
-#### Parte 3: Correccion de la division paralela
-
-Con $m = \lfloor |\text{pares}| / 2 \rfloor$, la division
-`slice(0, m)` y `slice(m, fin)` es una particion disjunta y completa
-de `pares`. La sumatoria de $f$ es aditivamente separable:
-
-$$
-f = \sum_{k=0}^{m-1} d(\alpha_{ord_k})(\alpha_{ord_{k+1}}) + \sum_{k=m}^{|ord|-2} d(\alpha_{ord_k})(\alpha_{ord_{k+1}})
-$$
-
-Cada termino depende unicamente de su par $(ord_k, ord_{k+1})$
-y de los valores de $d$ y $\alpha$, ambos de solo lectura. Las
-dos ramas de `parallel` no comparten estado mutable, por lo que:
-
-$$
-P_f = t_1 + t_2 = \sum_{k=0}^{m-1} d(\alpha_{ord_k})(\alpha_{ord_{k+1}}) + \sum_{k=m}^{|ord|-2} d(\alpha_{ord_k})(\alpha_{ord_{k+1}}) = f
-$$
-
-**Caso limite:** cuando todos los cursos estan en la misma aula,
-$d(k)(k) = 0$ para todo $k$, por lo que todos los terminos son
-$0$ y $t_1 + t_2 = 0$. La prueba **"todos en la misma aula generan
-movilidad 0"** verifica este caso. ✓
-
-**Caso limite:** cuando hay cursos sin asignar (`a(i) = -1`), el
-`filter` los excluye de `ordenados` antes de formar los pares,
-por lo que no participan en la sumatoria. La prueba **"cursos sin
-asignar no participan"** verifica este caso. ✓
-
-**Conclusion:**
-
-$$
-\forall \text{cursos},\; \text{aulas},\; d,\; \alpha : P_f(\text{cursos}, \text{aulas}, d, \alpha) == f(\text{cursos}, \text{aulas}, d, \alpha) \quad \checkmark
-$$
-
-
----
-
 ## 3.2. Funcion `generarAsignacionesPar` (version paralela)
 
 ### Especificacion
@@ -1065,84 +759,4 @@ $$
 
 $$
 \forall n, m \in \mathbb{N} : P_{f_\parallel}(n, m) == P_f(n, m) \quad \square
-$$
-
-## 3.3. Funcion `asignacionOptimaPar` (version paralela)
-
-### Especificación
-
-Sea $f : \text{Cursos} \times \text{Aulas} \times \text{Distancias} \times \text{Pesos} \to \text{Asignacion} \times \mathbb{N}$ la función que devuelve la asignación de mínimo costo total:
-
-$$
-f(C, A, D, w) = \arg\min_{\alpha \in \{0,\ldots,m-1\}^n} \text{CT}^\alpha_{C,A,D}
-$$
-
-### Implementacion
-
-```scala
-def generarAsignacionesPar(n: Int, m: Int): Vector[Asignacion] = {
-  if (n == 0)
-    Vector(Vector())
-  else {
-    val anteriorAsignacion = generarAsignacionesPar(n - 1, m)
-    def aux(vect: Vector[Int]): Vector[Asignacion] = {
-      if (vect.length == 1)
-        anteriorAsignacion.map(asigAnterior => vect(0) +: asigAnterior)
-      else {
-        val (vect1, vect2) = vect.splitAt(vect.length / 2)
-        val (a, b) = parallel(aux(vect1), aux(vect2))
-        a ++ b
-      }
-    }
-    aux((0 until m).toVector)
-  }
-}
-```
-
-### Argumentación de corrección
-
-Queremos demostrar que:
-
-$$
-\forall C, A, D, w : P_f(C, A, D, w) == f(C, A, D, w)
-$$
-
-**Demostración:**
-
-**Paso 1:** Por la corrección de `generarAsignaciones`, `todasLasAsignaciones` contiene exactamente todos los elementos de $\{0,\ldots,m-1\}^n$, es decir el espacio completo de búsqueda.
-
-**Paso 2:** La división en mitades es exhaustiva y sin pérdida:
-
-$$
-\text{mitadIzq} \cup \text{mitadDer} = \{0,\ldots,m-1\}^n
-\quad \land \quad
-\text{mitadIzq} \cap \text{mitadDer} = \emptyset
-$$
-
-Por lo tanto ninguna asignación se omite ni se duplica.
-
-**Paso 3:** `parallel` evalúa ambas mitades concurrentemente. Cada mitad calcula su mínimo local mediante `.map(...).minBy(_._2)`, que es equivalente a:
-
-$$
-\min_{\alpha \in \text{mitad}_i} \text{CT}^\alpha_{C,A,D}
-$$
-
-La concurrencia no afecta el resultado porque cada hilo opera sobre una partición independiente.
-
-**Paso 4:** La comparación final:
-
-$$
-\text{if } (\text{minimoIzq}._2 \leq \text{minimoDer}._2) \;\text{ minimoIzq } \text{ else } \text{ minimoDer}
-$$
-
-Selecciona el mínimo global entre los dos mínimos locales. Como las dos mitades cubren todo el espacio:
-
-$$
-\min(\min_{\alpha \in \text{mitadIzq}} \text{CT}^\alpha, \;\min_{\alpha \in \text{mitadDer}} \text{CT}^\alpha) = \min_{\alpha \in \{0,\ldots,m-1\}^n} \text{CT}^\alpha
-$$
-
-**Conclusión:**
-
-$$
-\forall C, A, D, w : P_f(C, A, D, w) == \arg\min_{\alpha \in \{0,\ldots,m-1\}^n} \text{CT}^\alpha_{C,A,D} \quad \checkmark
 $$
