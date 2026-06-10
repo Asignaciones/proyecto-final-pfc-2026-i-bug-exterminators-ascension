@@ -135,7 +135,18 @@ object AsignacionAulas {
    * Genera todas las asignaciones completas posibles: vectores en {0,..,m-1}^n.
    * El tamaño del resultado es m^n.
    */
-  def generarAsignaciones(n: Int, m: Int): Vector[Asignacion] = ???
+  def generarAsignaciones(n: Int, m: Int): Vector[Asignacion] = {
+    if (n==0)
+      Vector(Vector())//Caso base devuelve vector de vector vacio como punto de arranque para construir las posibles asignaciones
+    else {
+     val anteriorAsignacion= generarAsignaciones(n-1,m)
+        anteriorAsignacion.flatMap{
+        asignacion=>(0 until m).map{// se crea el punto de partida (0 hasta m-1) ejemplo si m es 2 quedaria (0,1)
+          aulas => aulas+:asignacion//Se agrega 0 y 1 ala asignacion anterior la cual va acumulando los resultados de cada marco de pila
+        }
+      }
+    }
+  }
 
   /**
    * Devuelve la asignación de mínimo costo y su costo.

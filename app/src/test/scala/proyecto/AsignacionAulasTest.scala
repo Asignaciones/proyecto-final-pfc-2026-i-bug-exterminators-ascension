@@ -242,10 +242,43 @@ class AsignacionAulasTest extends AnyFunSuite {
     assert(generarAsignaciones(3, 3).length == 27)
   }
 
+  //
+  test("generarAsignaciones: 0 cursos genera una asignacion vacia caso extremo") {
+    assert(
+      generarAsignaciones(0,2) == Vector(Vector()))
+  }
+
+  test("generarAsignaciones: 2 cursos y 3 aulas generan 9 asignaciones") {
+    assert(
+      generarAsignaciones(2,3).length == 9
+    )
+  }
+
+  test("generarAsignaciones: 3 cursos y 2 aulas generan 8 asignaciones") {
+    assert(
+      generarAsignaciones(3,2).length == 8
+    )
+  }
+
+  test("generarAsignaciones: contiene la asignacion Vector(1,1)") {
+    val resultado = generarAsignaciones(2,2)
+    assert(resultado.contains(Vector(1,1)))
+  }
+
+  test("generarAsignaciones: contiene todas las asignaciones para 1 curso y 3 aulas caso extremo") {
+    assert(
+      generarAsignaciones(1,3) ==
+        Vector(
+          Vector(0),
+          Vector(1),
+          Vector(2)
+        ))
+  }
   // asignacionOptima
   test("asignacionOptima: el costo de la optima no supera el de [0,1,0] (37)") {
     val (_, costo) = asignacionOptima(c1, a1, d1, w)
     assert(costo <= 37)
   }
 
+  
 }
